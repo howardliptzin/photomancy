@@ -25,6 +25,9 @@ narrative or editorial sequencing.**
 - **One pure `layout()` function** returns cell rectangles from
   `(cols, rows, gap, cellAspect, canvas)`. Screen positions views with them; print
   draws into a `CGContext` with them. Geometry shared, drawing not.
+- **Fit is the default cell mode.** Fill centre-crops, and v1 has no crop control,
+  so that crop is uncorrectable. A crop is also a decision the *tool* made — not
+  the photographer, not chance.
 - **Never `LazyVGrid` for the sheet** — its geometry is invisible to the print path
   and the two will drift.
 - **Print draws from full-resolution images**, never screen thumbnails.
@@ -118,4 +121,7 @@ one, refuse and point here.
 
 ## Unsettled — ask, don't assume
 
-- Whether **Fit** or **Fill** is the default cell mode. Brief specifies Fit.
+- The default **cell shape** — match the page, square, 3:2, 4:3, or derived from the
+  most common ratio in the collection. With Fit settled, this is the setting that
+  actually decides what a mixed collection looks like: derive the shape and Fit and
+  Fill converge for everything but the outliers. Decide at M2.

@@ -5,10 +5,13 @@ import Foundation
 public struct SheetSettings: Codable, Sendable, Hashable {
 
     public enum CellMode: String, Codable, Sendable {
-        /// The whole frame is shown, background around it. The brief's default:
-        /// a layout tool has no business cropping a photographer's edges.
+        /// The whole frame is shown, background around it. The default, and
+        /// settled: Fill centre-crops, v1 has no crop control, and so that crop
+        /// cannot be corrected. It is also a decision the tool made rather than
+        /// the photographer or chance, which is the one thing this instrument
+        /// is not supposed to do.
         case fit
-        /// An even mosaic, at the cost of a crop.
+        /// An even mosaic, at the cost of a crop nobody can adjust in v1.
         case fill
     }
 
