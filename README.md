@@ -14,10 +14,42 @@ In development. Nothing to install yet.
 
 ## Building
 
-Requires Xcode 16 or later and macOS 14 or later.
+Requires Xcode 16 or later, macOS 14 or later, and
+[XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`).
+
+The Xcode project is generated; `project.yml` is the source of truth.
 
 ```
-xcodebuild -scheme Photomancy build
+xcodegen generate
+xcodebuild -project Photomancy.xcodeproj -scheme Photomancy build
+```
+
+Tests — logic only, no app host, no window server:
+
+```
+xcodebuild -project Photomancy.xcodeproj -scheme PhotomancyCoreTests test
+```
+
+### The relaunch check
+
+Photomancy is sandboxed, so it may only reopen a photograph if it saved a
+security-scoped bookmark at import. No in-process test can prove that works: a
+URL stays authorised for the life of the process. This script imports, quits,
+deletes the thumbnail cache, and relaunches, so what appears on the second
+launch can only have come from the originals.
+
+```
+./Scripts/verify-relaunch.sh
+```
+
+### Measuring
+
+`photomancy-bench` links the same code the app does and measures decoding on a
+real photo library.
+
+```
+xcodebuild -project Photomancy.xcodeproj -scheme photomancy-bench -configuration Release build
+./build/DerivedData/Build/Products/Release/photomancy-bench ~/Pictures --count 60
 ```
 
 ## Licence

@@ -10,7 +10,7 @@ import PhotomancyCore
 
 struct Options {
     var paths: [String] = []
-    var sizes: [Int] = [512, 1024]
+    var sizes: [Int] = []
     var count = 30
 }
 
@@ -21,13 +21,14 @@ func parseOptions() -> Options {
         arguments.removeFirst()
         switch argument {
         case "--size":
-            if let value = arguments.first.flatMap(Int.init) { options.sizes = [value]; arguments.removeFirst() }
+            if let value = arguments.first.flatMap(Int.init) { options.sizes.append(value); arguments.removeFirst() }
         case "--count":
             if let value = arguments.first.flatMap(Int.init) { options.count = value; arguments.removeFirst() }
         default:
             options.paths.append(argument)
         }
     }
+    if options.sizes.isEmpty { options.sizes = [512, 1024] }
     return options
 }
 
@@ -78,6 +79,13 @@ for url in urls {
     guard let family = formatFamily(url) else { continue }
     byFormat[family, default: []].append(url)
 }
+// One sample per format, drawn once and reused for every size. Re-drawing per
+// size would mean the sizes were measured on different photographs, and any
+// comparison between them would be noise.
+var sample: [String: [URL]] = [:]
+for (family, files) in byFormat {
+    sample[family] = Array(files.shuffled().prefix(options.count))
+}
 
 print("photomancy-bench — \(urls.count) images found, sampling up to \(options.count) per format")
 print("host: \(ProcessInfo.processInfo.operatingSystemVersionString), \(ProcessInfo.processInfo.activeProcessorCount) cores")
@@ -86,21 +94,21 @@ print("")
 for size in options.sizes {
     print("── decode to \(size) px on the long edge ─────────────────────────────")
     print(String(
-        format: "%-6@ %5@ %9@ %9@ %9@ %9@ %9@",
+        format: "%-6@ %5@ %9@ %9@ %9@ %9@ %9@ %8@",
         "fmt" as NSString, "n" as NSString, "median MB" as NSString,
         "cold p50" as NSString, "cold p90" as NSString,
-        "warm p50" as NSString, "embed p50" as NSString
+        "warm p50" as NSString, "embed p50" as NSString, "embed n" as NSString
     ))
+    var problems: [String] = []
 
     for family in ["JPEG", "HEIC", "PNG", "TIFF", "RAW", "other"] {
-        guard var files = byFormat[family], !files.isEmpty else { continue }
-        files.shuffle()
-        files = Array(files.prefix(options.count))
+        guard let files = sample[family], !files.isEmpty else { continue }
 
         var cold: [Double] = []
         var warm: [Double] = []
         var embedded: [Double] = []
         var megabytes: [Double] = []
+        var embeddedHits = 0
         var failures = 0
 
         for url in files {
@@ -114,11 +122,18 @@ for size in options.sizes {
                 warm.append(try milliseconds {
                     _ = try ThumbnailDecoder.decode(url: url, maxPixelSize: size, strategy: .fullDecode)
                 })
+                var provenance = Thumbnail.Provenance.fullDecode
                 embedded.append(try milliseconds {
-                    _ = try ThumbnailDecoder.decode(url: url, maxPixelSize: size, strategy: .embeddedIfAdequate)
+                    provenance = try ThumbnailDecoder.decode(
+                        url: url, maxPixelSize: size, strategy: .embeddedIfAdequate
+                    ).provenance
                 })
+                if provenance == .embeddedPreview { embeddedHits += 1 }
             } catch {
                 failures += 1
+                if failures <= 3 {
+                    problems.append("\(family): \(url.lastPathComponent) — \(error.localizedDescription)")
+                }
             }
         }
 
@@ -127,23 +142,23 @@ for size in options.sizes {
             continue
         }
         print(String(
-            format: "%-6@ %5d %9.1f %9.1f %9.1f %9.1f %9.1f%@",
+            format: "%-6@ %5d %9.1f %9.1f %9.1f %9.1f %9.1f %8@%@",
             family as NSString, cold.count,
             percentile(megabytes, 0.5),
             percentile(cold, 0.5), percentile(cold, 0.9),
             percentile(warm, 0.5), percentile(embedded, 0.5),
+            "\(embeddedHits)/\(cold.count)" as NSString,
             (failures > 0 ? "  (\(failures) failed)" : "") as NSString
         ))
     }
+    for problem in problems { print("   ! \(problem)") }
     print("")
 }
 
 // ── content hashing, which every import pays once ─────────────────────────────
 print("── content hash (SHA-256, streaming) ────────────────────────────────────")
 for family in ["JPEG", "HEIC", "PNG"] {
-    guard var files = byFormat[family], !files.isEmpty else { continue }
-    files.shuffle()
-    files = Array(files.prefix(min(options.count, 20)))
+    guard let files = sample[family]?.prefix(20), !files.isEmpty else { continue }
     var times: [Double] = []
     var megabytes: [Double] = []
     for url in files {
