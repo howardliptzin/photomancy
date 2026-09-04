@@ -28,6 +28,17 @@ narrative or editorial sequencing.**
 - **Fit is the default cell mode.** Fill centre-crops, and v1 has no crop control,
   so that crop is uncorrectable. A crop is also a decision the *tool* made — not
   the photographer, not chance.
+- **Cell shape is a per-collection setting**, starting at **square**. Square is the
+  only shape where a photograph and its transpose occupy the same area, and it is
+  the minimax choice — under random placement the worst-placed frame is a recurring
+  event, not an edge case. Options: square, 3:2, 4:3, match the page, derived from
+  the collection. `derivedFromCollection` is a choice someone makes and never a
+  default: it would reflow a sheet on import with nothing on screen to say why.
+- **Every sheet setting is per collection**, All Photos included, and every one of
+  them decodes with a default when its key is missing. Settings are the part of the
+  store that grows, and `LibraryStore.load()` refuses to overwrite a file it could
+  not read — so a throw on an unknown key would show an empty grid over a perfectly
+  intact library.
 - **Never `LazyVGrid` for the sheet** — its geometry is invisible to the print path
   and the two will drift.
 - **Print draws from full-resolution images**, never screen thumbnails.
@@ -121,7 +132,8 @@ one, refuse and point here.
 
 ## Unsettled — ask, don't assume
 
-- The default **cell shape** — match the page, square, 3:2, 4:3, or derived from the
-  most common ratio in the collection. With Fit settled, this is the setting that
-  actually decides what a mixed collection looks like: derive the shape and Fit and
-  Fill converge for everything but the outliers. Decide at M2.
+- **Where the page lives.** `matchPage` needs a paper size and orientation, and
+  nothing owns one yet — it is not in `SheetSettings`, and print is M5. Decide
+  whether paper is per collection or app-wide before M2 resolves a cell shape to a
+  number, because `matchPage` and `derivedFromCollection` are the two shapes that
+  cannot be resolved from the setting alone.

@@ -4,6 +4,29 @@ import Foundation
 /// which carries its own settings and its own pins like any other collection.
 public struct SheetSettings: Codable, Sendable, Hashable {
 
+    /// The shape of a cell, chosen per collection.
+    ///
+    /// Square is the default because it is the only shape where a photograph and
+    /// its transpose occupy the same area, and because it is the minimax choice:
+    /// it does not make any photograph biggest, it makes the worst-placed one
+    /// least bad. With random placement the worst case is a recurring event
+    /// rather than an edge case, which is what makes that the right objective
+    /// here and not in an ordinary layout tool.
+    public enum CellShape: String, Codable, Sendable, Hashable, CaseIterable {
+        case square
+        case threeByTwo
+        case fourByThree
+        /// The cell takes the proportions of the sheet it prints on.
+        case matchPage
+        /// The most common ratio in the collection.
+        ///
+        /// Offered, never a default: it would change the shape of a sheet on
+        /// import, with nothing on screen to say why, and All Photos drifts as
+        /// the whole library grows.
+        case derivedFromCollection
+    }
+
+
     public enum CellMode: String, Codable, Sendable {
         /// The whole frame is shown, background around it. The default, and
         /// settled: Fill centre-crops, v1 has no crop control, and so that crop
@@ -21,19 +44,44 @@ public struct SheetSettings: Codable, Sendable, Hashable {
     public var gap: Double
     public var backgroundHex: String
     public var cellMode: CellMode
+    public var cellShape: CellShape
 
     public init(
         columns: Int = 5,
         rows: Int = 4,
         gap: Double = 12,
         backgroundHex: String = "#FFFFFF",
-        cellMode: CellMode = .fit
+        cellMode: CellMode = .fit,
+        cellShape: CellShape = .square
     ) {
         self.columns = columns
         self.rows = rows
         self.gap = gap
         self.backgroundHex = backgroundHex
         self.cellMode = cellMode
+        self.cellShape = cellShape
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case columns, rows, gap, backgroundHex, cellMode, cellShape
+    }
+
+    /// Every field falls back to its default when the key is absent.
+    ///
+    /// Settings are the part of the store that grows — this one gained
+    /// `cellShape` after libraries had already been written. Synthesised
+    /// decoding would have thrown on the missing key, and `LibraryStore.load()`
+    /// refuses to overwrite a library it could not read, so a person would have
+    /// opened the app to an empty grid and a file that was perfectly intact.
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let fallback = SheetSettings()
+        columns = try container.decodeIfPresent(Int.self, forKey: .columns) ?? fallback.columns
+        rows = try container.decodeIfPresent(Int.self, forKey: .rows) ?? fallback.rows
+        gap = try container.decodeIfPresent(Double.self, forKey: .gap) ?? fallback.gap
+        backgroundHex = try container.decodeIfPresent(String.self, forKey: .backgroundHex) ?? fallback.backgroundHex
+        cellMode = try container.decodeIfPresent(CellMode.self, forKey: .cellMode) ?? fallback.cellMode
+        cellShape = try container.decodeIfPresent(CellShape.self, forKey: .cellShape) ?? fallback.cellShape
     }
 }
 
