@@ -1,0 +1,51 @@
+## macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+## Xcode — build products and per-user state
+build/
+DerivedData/
+*.xcuserstate
+*.xcscmblueprint
+*.xccheckout
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM
+*.dSYM.zip
+xcuserdata/
+
+## Swift Package Manager
+.build/
+.swiftpm/
+# Package.resolved is committed on purpose — it pins dependency versions.
+
+## Signing material and secrets — never in a public repo
+*.mobileprovision
+*.provisionprofile
+*.p12
+*.cer
+*.certSigningRequest
+
+## Photographs.
+## This repo is public. Camera-native and large formats are blanket-ignored
+## because they never legitimately belong in the source tree.
+*.[Cc][Rr]2
+*.[Cc][Rr]3
+*.[Nn][Ee][Ff]
+*.[Aa][Rr][Ww]
+*.[Rr][Aa][Ff]
+*.[Oo][Rr][Ff]
+*.[Rr][Ww]2
+*.[Dd][Nn][Gg]
+*.[Hh][Ee][Ii][Cc]
+*.[Tt][Ii][Ff]
+*.[Tt][Ii][Ff][Ff]
+*.[Pp][Ss][Dd]
+
+## JPEG and PNG are deliberately NOT blanket-ignored — the asset catalogue
+## needs them for the app icon. Keep local test photographs in these folders
+## instead, which are ignored wholesale.
+/TestPhotos/
+/Fixtures/Photos/
