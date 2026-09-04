@@ -49,3 +49,7 @@ xcuserdata/
 ## instead, which are ignored wholesale.
 /TestPhotos/
 /Fixtures/Photos/
+
+## The Xcode project is generated from project.yml by XcodeGen.
+## project.yml is the source of truth; the .xcodeproj is a build product.
+*.xcodeproj/

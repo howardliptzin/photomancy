@@ -1,0 +1,143 @@
+name: Photomancy
+
+options:
+  bundleIdPrefix: com.luna-park
+  createIntermediateGroups: true
+  deploymentTarget:
+    macOS: "14.0"
+  groupSortPosition: top
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    ALWAYS_SEARCH_USER_PATHS: NO
+    CLANG_ENABLE_MODULES: YES
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    GCC_WARN_ABOUT_RETURN_TYPE: YES_ERROR
+    SWIFT_TREAT_WARNINGS_AS_ERRORS: NO
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGN_STYLE: Manual
+    CODE_SIGN_IDENTITY: "-"
+
+targets:
+
+  # ---------------------------------------------------------------------------
+  # All logic lives here: hashing, bookmarks, the store, decoding, caching, and
+  # (from M2) layout(). The app target must stay a thin shell over this so the
+  # UI can be torn up without touching anything that is tested.
+  # ---------------------------------------------------------------------------
+  PhotomancyCore:
+    type: library.static
+    platform: macOS
+    sources:
+      - path: Sources/PhotomancyCore
+    settings:
+      base:
+        PRODUCT_NAME: PhotomancyCore
+        SKIP_INSTALL: YES
+        # Pure Swift, no Objective-C consumers. Without this the static library
+        # gets a generated-header copy phase that fights script sandboxing.
+        SWIFT_INSTALL_OBJC_HEADER: NO
+
+  Photomancy:
+    type: application
+    platform: macOS
+    sources:
+      - path: Sources/Photomancy
+    dependencies:
+      - target: PhotomancyCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.luna-park.Photomancy
+        PRODUCT_NAME: Photomancy
+        CODE_SIGN_ENTITLEMENTS: Sources/Photomancy/Photomancy.entitlements
+        ENABLE_HARDENED_RUNTIME: YES
+        COMBINE_HIDPI_IMAGES: YES
+        INFOPLIST_KEY_NSHumanReadableCopyright: "Copyright © 2026 Howard Liptzin · luna-park.com"
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.photography
+        INFOPLIST_KEY_NSPrincipalClass: NSApplication
+    info:
+      path: Sources/Photomancy/Info.plist
+      properties:
+        CFBundleName: Photomancy
+        CFBundleDisplayName: Photomancy
+        LSMinimumSystemVersion: "14.0"
+        NSHighResolutionCapable: true
+        # Declaring the image types is what makes "Open With", dropping onto the
+        # Dock icon, and `open -a Photomancy photo.jpg` grant sandbox access to
+        # those files — the same user-selected permission the file picker gives.
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: Photograph
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Alternate
+            LSItemContentTypes:
+              - public.jpeg
+              - public.png
+              - public.heic
+              - public.heif
+              - public.tiff
+              - public.image
+          - CFBundleTypeName: Folder of photographs
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Alternate
+            LSItemContentTypes:
+              - public.folder
+
+  PhotomancyCoreTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: Tests/PhotomancyCoreTests
+    dependencies:
+      - target: PhotomancyCore
+    settings:
+      base:
+        # Deliberately not hosted in the app. These are logic tests: they must
+        # run unsandboxed against real files on disk, and they must not need a
+        # window server.
+        GENERATE_INFOPLIST_FILE: YES
+
+  # ---------------------------------------------------------------------------
+  # Unsandboxed command line tool that links the *same* Core. It exists so the
+  # thumbnail pipeline can be measured on the real photo library from the shell,
+  # rather than on fixtures chosen to make the number look good.
+  # ---------------------------------------------------------------------------
+  photomancy-bench:
+    type: tool
+    platform: macOS
+    sources:
+      - path: Tools/Bench
+    dependencies:
+      - target: PhotomancyCore
+    settings:
+      base:
+        PRODUCT_NAME: photomancy-bench
+
+schemes:
+  Photomancy:
+    build:
+      targets:
+        Photomancy: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - PhotomancyCoreTests
+  PhotomancyCoreTests:
+    build:
+      targets:
+        PhotomancyCoreTests: [test]
+    test:
+      config: Debug
+      targets:
+        - PhotomancyCoreTests
+  photomancy-bench:
+    build:
+      targets:
+        photomancy-bench: all
+    run:
+      config: Release
