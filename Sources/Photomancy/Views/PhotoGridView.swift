@@ -13,14 +13,22 @@ struct PhotoGridView: View {
 
     @State private var cellSide: Double = 160
 
+    /// How much wider than tall a cell is allowed to get. Named because the
+    /// grid and the decode request must agree on it — if they drift, landscape
+    /// photographs go soft and nothing else looks wrong.
+    private let widthRatio: Double = 1.6
+
     var body: some View {
         ScrollView {
             LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: cellSide, maximum: cellSide * 1.6), spacing: 12)],
+                columns: [GridItem(.adaptive(minimum: cellSide, maximum: cellSide * widthRatio), spacing: 12)],
                 spacing: 12
             ) {
                 ForEach(photographs) { reference in
-                    ThumbnailCell(reference: reference, side: cellSide)
+                    ThumbnailCell(
+                        reference: reference,
+                        cellSize: CGSize(width: cellSide * widthRatio, height: cellSide)
+                    )
                 }
             }
             .padding(16)

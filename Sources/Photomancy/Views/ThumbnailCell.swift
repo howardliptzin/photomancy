@@ -4,7 +4,9 @@ import PhotomancyCore
 struct ThumbnailCell: View {
 
     let reference: PhotoReference
-    let side: Double
+    /// The cell to draw into, not just its height: under Fit a landscape
+    /// photograph fills the cell's width, and that is what has to be decoded.
+    let cellSize: CGSize
 
     @Environment(LibraryController.self) private var controller
     @Environment(\.displayScale) private var displayScale
@@ -14,7 +16,7 @@ struct ThumbnailCell: View {
 
     /// The bucket, not the exact size — so nudging a window does not re-decode.
     private var requestedPixels: Int {
-        ThumbnailSize.bucket(forPoints: side, scale: displayScale)
+        ThumbnailSize.bucket(forCell: cellSize, scale: displayScale)
     }
 
     var body: some View {
@@ -31,7 +33,7 @@ struct ThumbnailCell: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .frame(height: side)
+        .frame(height: cellSize.height)
         .clipShape(RoundedRectangle(cornerRadius: 3))
         .help(failure ?? reference.displayName)
         .task(id: taskIdentity) { await load() }

@@ -169,4 +169,15 @@ public enum ThumbnailSize {
     public static func bucket(forPoints points: Double, scale: Double) -> Int {
         bucket(forPixels: Int((points * max(scale, 1)).rounded(.up)))
     }
+
+    /// The size to decode for one cell under Fit.
+    ///
+    /// Fit insets the photograph inside the cell, so its longest rendered edge
+    /// is the *cell's* longest edge — not the cell's height, and not the width.
+    /// Asking from either one alone under-decodes every photograph whose
+    /// orientation differs from the cell's, and the only symptom is that some
+    /// of the grid is quietly soft.
+    public static func bucket(forCell size: CGSize, scale: Double) -> Int {
+        bucket(forPoints: max(size.width, size.height), scale: scale)
+    }
 }
