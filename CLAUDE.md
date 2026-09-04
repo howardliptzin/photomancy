@@ -38,6 +38,21 @@ narrative or editorial sequencing.**
 - **All Photos** is a virtual collection: every reference, de-duped by content hash.
   Own pins, own settings. The first-launch view.
 
+## M1 is not done until
+
+1. **The app is sandboxed from the very first build** — `com.apple.security.app-sandbox`
+   and `com.apple.security.files.user-selected.read-only` in the entitlements. With the
+   sandbox off, missing-bookmark bugs are invisible and every path looks correct.
+   Verify with `codesign -d --entitlements - <path>.app`, not by assuming.
+2. **Quit the app, relaunch, and the imported photographs still render.** Nothing short
+   of this proves the bookmarks work. An in-process test passes even when they are
+   broken, because the URL stays authorised for the life of the process — it measures
+   the proxy, not the thing.
+3. **The reference store exposes no bare `URL`** — only a scoped accessor, e.g.
+   `withAccess { url in … }`, that starts and stops access around every read. If a raw
+   URL cannot be obtained, no later code can forget to redeem the bookmark.
+4. **`bookmarkDataIsStale` is handled** by re-creating and re-saving the bookmark.
+
 ## Interaction — settled
 
 Every core action has **both a pointer route and a keyboard route**. Neither is the
