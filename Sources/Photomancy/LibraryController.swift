@@ -16,7 +16,16 @@ final class LibraryController {
     let cache: ThumbnailCache
 
     /// `nil` is All Photos — the virtual collection, and the first-launch view.
-    var selection: UUID?
+    var selection: UUID? {
+        didSet {
+            guard isRestored else { return }
+            store.setLastOpenedCollection(selection)
+        }
+    }
+
+    /// Set once the stored selection has been applied, so restoring it does not
+    /// immediately write it back as if the person had chosen it.
+    private var isRestored = false
     var importProgress: ImportProgress?
     var message: String?
 
@@ -50,6 +59,15 @@ final class LibraryController {
     func start() {
         guard !store.isLoaded else { return }
         store.load()
+
+        // Reopen on the collection that was on screen at quit. A collection that
+        // has since been deleted falls back to All Photos rather than to nothing.
+        let remembered = store.document.lastOpenedCollection
+        selection = remembered.flatMap { id in
+            store.document.collections.contains { $0.id == id } ? id : nil
+        }
+        isRestored = true
+
         log.info("launched with \(self.store.document.references.count) references")
         #if DEBUG
         verifyAccessToEveryPhotograph()

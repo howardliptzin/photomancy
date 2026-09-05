@@ -35,15 +35,15 @@ narrative or editorial sequencing.**
 - **The grid block scales; the cell shape is held.** Filling the window means cells
   grow as large as they can while keeping their shape, centred, with dead space at
   two window edges. Cells never distort to fit a window. Screen space is free.
-- **Fit is the default cell mode.** Fill centre-crops, and v1 has no crop control,
-  so that crop is uncorrectable. A crop is also a decision the *tool* made — not
-  the photographer, not chance.
-- **Cell shape is a per-collection setting**, starting at **square**. Square is the
-  only shape where a photograph and its transpose occupy the same area, and it is
-  the minimax choice — under random placement the worst-placed frame is a recurring
-  event, not an edge case. Options: square, 3:2, 4:3, derived from the
-  collection. `derivedFromCollection` is a choice someone makes and never a
-  default: it would reflow a sheet on import with nothing on screen to say why.
+- **Fit is the only cell mode; Fill is not built.** Cropping is a decision that
+  belongs to the photographer and is out of scope for this app, so there is no
+  setting and no code path for it. Fit is the behaviour, not a preference.
+- **Cell shape is a per-collection setting, derived from the collection by default.**
+  The ratio shared by strictly more than half the photographs wins; where none holds
+  a majority it falls back to square. That fallback is not a consolation — a mixed
+  orientation collection has no majority ratio, and square is the only shape where a
+  photograph and its transpose occupy the same area, so the arithmetic lands exactly
+  where the minimax argument says it should. Options: derived, square, 3:2, 4:3.
 - **5 × 4 is a starting grid, not a constraint.** 8 × 8 at a 1 px gap and 3 × 2 at
   4 px are both ordinary uses. Never bound what can be played with on screen
   because of what it would cost on paper.
@@ -72,6 +72,12 @@ narrative or editorial sequencing.**
 - **Paper is the print target**, remembered per collection, starting at **A4
   landscape** — which makes the default output a contact sheet. It does not shape
   the screen; it is consulted only when scaling a sheet onto a page.
+- **Collections, pins and the collection that was open survive a quit.** This is the
+  point of the bookmarks and the store, and it is not negotiable. A pin records the
+  photograph *and its cell*, so pinned frames return where they were left; the
+  unpinned ones re-roll on launch, which is intended — if the order mattered, it
+  should have been pinned. Restoring a full arrangement is explicitly not worth
+  building.
 - **Every sheet setting is per collection**, All Photos included, and every one of
   them decodes with a default when its key is missing. Settings are the part of the
   store that grows, and `LibraryStore.load()` refuses to overwrite a file it could
@@ -129,6 +135,8 @@ poor relation.
 | `⌘Z` / `⇧⌘Z` | Step through arrangements |
 | `⌘P` | Print (also yields PDF) |
 
+- **A pin is marked with a white dot with a thin black outline, in the upper left
+  corner of the frame.** One mark, one place, no variants.
 - **Undo spans shuffles.** Non-negotiable — it's what makes gambling on chance safe.
 - Click pins, double-click zooms. This is deliberately **inverted** from the web app.
 - Randomize animates cells to new positions (~200ms), respecting
@@ -148,11 +156,16 @@ and logic-free so it can be torn up without touching layout, caching or state.
 ## Do not build (v1)
 
 Watched folders · publishing to a server · constraint rules for the shuffle · editing
-or cropping · multi-page contact sheets · captions/metadata overlays · iCloud sync ·
-soft proofing or CMYK.
+or cropping · **Fill / any crop-to-cell mode** · multi-page contact sheets ·
+captions/metadata overlays · iCloud sync · soft proofing or CMYK · restoring a full
+arrangement across launches.
 
 Each sounds small and each moves this toward being a weaker Lightroom. If I propose
 one, refuse and point here.
+
+**The first release is lean and essential.** Nothing goes in because it would be nice
+or because it is cheap. Features are added after release only on enough user requests
+— that is the bar, and "enough" means more than one person asking unprompted.
 
 ## Working conventions
 
@@ -183,5 +196,12 @@ one, refuse and point here.
 
 ## Unsettled — ask, don't assume
 
-Nothing open. New questions belong here, where they will be seen, rather than
-buried in a commit message or a code comment.
+- **Whether a derived cell shape re-derives on import.** It currently resolves live, so
+  importing enough photographs of a different ratio reshapes the sheet with nothing on
+  screen to say why. The alternative is to freeze the derived ratio the first time a
+  collection is given photographs and only change it when asked. One line either way;
+  decide it once M2 makes the reflow visible.
+- **How the cell-shape override is chosen.** A pull-down near the collection title is
+  the current proposal. Settle it with the rest of the sheet controls in M2.
+- **Which form the keyboard-shortcut legend takes.** Alternatives offered; pick one
+  before M3, since the loop is when the shortcuts start to matter.
