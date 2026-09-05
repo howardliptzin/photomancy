@@ -58,7 +58,9 @@ narrative or editorial sequencing.**
   window's *area*, not the number of cells. More cells means smaller ones. What binds
   first is the cold fill, which scales with cell count while each decode gets cheaper
   as cells shrink; every visit after the first comes from the disk cache and is
-  trivial. Watch the first fill, not memory.
+  trivial. Watch the first fill, not memory. Measured at M2 on 80 photographs in one
+  window: 6 cells 150 MB, 64 cells 145 MB, 120 cells 153 MB, 320 cells 143 MB — flat,
+  as predicted.
 - **The memory cache limit is a function of window area, not a constant.** Thumbnails
   are bucketed up to 1.5× their cell, and a cell's bucket is its long edge, so the
   decoded total is roughly two to four times the window's pixel count in bytes — a 5K

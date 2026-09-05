@@ -1,12 +1,16 @@
 import SwiftUI
 import PhotomancyCore
 
-struct ThumbnailCell: View {
+/// One photograph in one cell.
+///
+/// Fit is the behaviour rather than a preference: the whole frame is shown with
+/// background around it. Cropping is the photographer's decision and is out of
+/// scope for this app.
+struct SheetCell: View {
 
     let reference: PhotoReference
-    /// The cell to draw into, not just its height: under Fit a landscape
-    /// photograph fills the cell's width, and that is what has to be decoded.
-    let cellSize: CGSize
+    let size: CGSize
+    let background: SheetColor
 
     @Environment(LibraryController.self) private var controller
     @Environment(\.displayScale) private var displayScale
@@ -14,37 +18,33 @@ struct ThumbnailCell: View {
     @State private var thumbnail: Thumbnail?
     @State private var failure: String?
 
-    /// The bucket, not the exact size — so nudging a window does not re-decode.
+    /// The bucket for the whole cell, not one edge of it — under Fit a landscape
+    /// frame spans the cell's width, and asking from the height alone would
+    /// decode it too small.
     private var requestedPixels: Int {
-        ThumbnailSize.bucket(forCell: cellSize, scale: displayScale)
+        ThumbnailSize.bucket(forCell: size, scale: displayScale)
     }
 
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 3)
-                .fill(.quaternary)
-
             if let thumbnail {
                 Image(decorative: thumbnail.image, scale: displayScale)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
             } else if failure != nil {
                 Image(systemName: "exclamationmark.triangle")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color(background.blended(toward: background.contrastingInk, amount: 0.45)))
+            } else {
+                // Stands in until the image arrives, derived from the background
+                // so it reads on a dark sheet as well as a light one.
+                Rectangle().fill(Color(background.placeholderTint))
             }
         }
-        .frame(height: cellSize.height)
-        .clipShape(RoundedRectangle(cornerRadius: 3))
         .help(failure ?? reference.displayName)
-        .task(id: taskIdentity) { await load() }
-    }
-
-    private var taskIdentity: String {
-        "\(reference.id.hex)@\(requestedPixels)"
+        .task(id: "\(reference.id.hex)@\(requestedPixels)") { await load() }
     }
 
     private func load() async {
-        // Already warm: draw in this frame rather than flashing a placeholder.
         if let warm = controller.cache.inMemory(reference, maxPixel: requestedPixels) {
             thumbnail = warm
             failure = nil

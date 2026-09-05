@@ -115,6 +115,11 @@ public final class LibraryStore {
         scheduleSave()
     }
 
+    public func updateSettings(_ settings: SheetSettings, for collectionID: UUID?) {
+        document.updateSettings(settings, for: collectionID)
+        scheduleSave()
+    }
+
     public func updatePins(_ pins: [Pin], for collectionID: UUID?) {
         document.updatePins(pins, for: collectionID)
         scheduleSave()
