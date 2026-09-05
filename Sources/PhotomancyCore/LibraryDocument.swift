@@ -14,18 +14,41 @@ public struct LibraryDocument: Codable, Sendable, Equatable {
     /// Settings for the All Photos view, which is virtual and so has nowhere
     /// else to keep them.
     public var allPhotosSettings: SheetSettings
+    /// Likewise its pins.
+    public var allPhotosPins: [Pin]
+    /// Reopened on the next launch. `nil` is All Photos, which is also the
+    /// first-launch view, so an absent value needs no special case.
+    public var lastOpenedCollection: UUID?
 
     public init(
         version: Int = LibraryDocument.currentVersion,
         references: [PhotoReference] = [],
         collections: [PhotoCollection] = [],
-        allPhotosSettings: SheetSettings = SheetSettings()
+        allPhotosSettings: SheetSettings = SheetSettings(),
+        allPhotosPins: [Pin] = [],
+        lastOpenedCollection: UUID? = nil
     ) {
         self.version = version
         self.references = []
         self.collections = collections
         self.allPhotosSettings = allPhotosSettings
+        self.allPhotosPins = allPhotosPins
+        self.lastOpenedCollection = lastOpenedCollection
         for reference in references { _ = insert(reference) }
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case version, references, collections, allPhotosSettings, allPhotosPins, lastOpenedCollection
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        version = try container.decodeIfPresent(Int.self, forKey: .version) ?? Self.currentVersion
+        references = try container.decodeIfPresent([PhotoReference].self, forKey: .references) ?? []
+        collections = try container.decodeIfPresent([PhotoCollection].self, forKey: .collections) ?? []
+        allPhotosSettings = try container.decodeIfPresent(SheetSettings.self, forKey: .allPhotosSettings) ?? SheetSettings()
+        allPhotosPins = try container.decodeIfPresent([Pin].self, forKey: .allPhotosPins) ?? []
+        lastOpenedCollection = try container.decodeIfPresent(UUID.self, forKey: .lastOpenedCollection)
     }
 
     // MARK: - References
@@ -58,7 +81,30 @@ public struct LibraryDocument: Codable, Sendable, Equatable {
 
     public mutating func remove(_ ids: Set<ContentHash>) {
         references.removeAll { ids.contains($0.id) }
+        allPhotosPins.removeAll { ids.contains($0.photo) }
         for offset in collections.indices { collections[offset].remove(ids) }
+    }
+
+    // MARK: - Pins
+
+    /// `nil` is All Photos, which keeps its own pins like any other collection.
+    public func pins(in collectionID: UUID?) -> [Pin] {
+        guard let collectionID else { return allPhotosPins }
+        return collections.first(where: { $0.id == collectionID })?.pins ?? []
+    }
+
+    public mutating func updatePins(_ pins: [Pin], for collectionID: UUID?) {
+        guard let collectionID else {
+            allPhotosPins = pins
+            return
+        }
+        guard let offset = collections.firstIndex(where: { $0.id == collectionID }) else { return }
+        collections[offset].pins = pins
+    }
+
+    /// The cell shape actually used to lay this collection out.
+    public func cellAspect(for collectionID: UUID?) -> Double {
+        settings(for: collectionID).cellShape.aspect(for: photos(in: collectionID))
     }
 
     // MARK: - Views
@@ -102,6 +148,7 @@ public struct LibraryDocument: Codable, Sendable, Equatable {
 
     public mutating func removeCollection(_ id: UUID) {
         collections.removeAll { $0.id == id }
+        if lastOpenedCollection == id { lastOpenedCollection = nil }
     }
 
     /// Adding to All Photos (`nil`) is a no-op beyond the reference already

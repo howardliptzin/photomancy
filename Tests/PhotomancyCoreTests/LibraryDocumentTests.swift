@@ -75,15 +75,6 @@ final class LibraryDocumentTests: XCTestCase {
         XCTAssertEqual(document.reference(for: reference("a").id)?.bookmark, Data("fresh".utf8))
     }
 
-    /// Settled, and worth a test because it is a product decision rather than
-    /// an implementation detail: nothing should be able to flip it in passing.
-    func testDefaultCellModeIsFit() {
-        XCTAssertEqual(SheetSettings().cellMode, .fit)
-        XCTAssertEqual(LibraryDocument().allPhotosSettings.cellMode, .fit)
-        var document = LibraryDocument()
-        XCTAssertEqual(document.addCollection(named: "Set").settings.cellMode, .fit)
-    }
-
     /// All Photos is virtual, so its settings have nowhere else to live.
     func testAllPhotosCarriesItsOwnSettings() {
         var document = LibraryDocument()

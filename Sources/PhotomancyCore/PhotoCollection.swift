@@ -1,46 +1,84 @@
 import Foundation
 
+/// A photograph held in a particular cell across rolls.
+///
+/// Stored as photograph-and-cell rather than as a flag, so pinned frames come back
+/// exactly where they were left after a quit. The unpinned ones re-roll, which is
+/// the intended behaviour and not a shortfall.
+public struct Pin: Codable, Sendable, Hashable {
+    public let photo: ContentHash
+    public var cell: Int
+    public init(photo: ContentHash, cell: Int) {
+        self.photo = photo
+        self.cell = cell
+    }
+}
+
+/// The shape of a cell, chosen per collection.
+public enum CellShape: String, Codable, Sendable, Hashable, CaseIterable {
+    case square
+    case threeByTwo
+    case fourByThree
+    /// The ratio shared by more than half the collection — the default.
+    ///
+    /// Where no ratio holds a majority it falls back to square, which is the
+    /// right answer for exactly that case: square is the only shape where a
+    /// photograph and its transpose occupy the same area, and the minimax
+    /// choice under random placement. A collection of mixed orientation has
+    /// no majority ratio and lands on square by arithmetic rather than by
+    /// special-casing.
+    case derivedFromCollection
+
+    /// Width ÷ height, resolved against the collection it belongs to.
+    /// Pure, so `layout()` can be tested without a library.
+    public func aspect(for photographs: [PhotoReference]) -> Double {
+        switch self {
+        case .square: 1
+        case .threeByTwo: 3.0 / 2.0
+        case .fourByThree: 4.0 / 3.0
+        case .derivedFromCollection: CellShape.majorityAspect(of: photographs) ?? 1
+        }
+    }
+
+    /// The aspect shared by strictly more than half the collection, or `nil`.
+    ///
+    /// Ratios are clustered with a tolerance because a frame that has been
+    /// straightened or exported at an odd size is still a 3:2 frame; without
+    /// it, one stray pixel would split a cluster and lose the majority.
+    public static func majorityAspect(
+        of photographs: [PhotoReference],
+        tolerance: Double = 0.02
+    ) -> Double? {
+        guard !photographs.isEmpty else { return nil }
+        var clusters: [(aspect: Double, count: Int)] = []
+        for photograph in photographs {
+            let aspect = photograph.aspectRatio
+            if let index = clusters.firstIndex(where: {
+                abs($0.aspect - aspect) / $0.aspect <= tolerance
+            }) {
+                clusters[index].count += 1
+            } else {
+                clusters.append((aspect, 1))
+            }
+        }
+        guard let largest = clusters.max(by: { $0.count < $1.count }) else { return nil }
+        // Strictly more than half — "+51%", not "the most common".
+        return largest.count * 2 > photographs.count ? largest.aspect : nil
+    }
+}
+
+
+
+/// 5 × 4 is a starting point, not a constraint.
+///
+/// 8 × 8 at a 1 px gap and 3 × 2 at 4 px are both ordinary uses. What a grid
+/// costs on paper is a print-time question and never a reason to bound what
+/// can be played with on screen.
+
 /// How a sheet is set up. Persisted per collection, including for All Photos,
 /// which carries its own settings and its own pins like any other collection.
 public struct SheetSettings: Codable, Sendable, Hashable {
 
-    /// The shape of a cell, chosen per collection.
-    ///
-    /// Square is the default because it is the only shape where a photograph and
-    /// its transpose occupy the same area, and because it is the minimax choice:
-    /// it does not make any photograph biggest, it makes the worst-placed one
-    /// least bad. With random placement the worst case is a recurring event
-    /// rather than an edge case, which is what makes that the right objective
-    /// here and not in an ordinary layout tool.
-    public enum CellShape: String, Codable, Sendable, Hashable, CaseIterable {
-        case square
-        case threeByTwo
-        case fourByThree
-        /// The most common ratio in the collection.
-        ///
-        /// Offered, never a default: it would change the shape of a sheet on
-        /// import, with nothing on screen to say why, and All Photos drifts as
-        /// the whole library grows.
-        case derivedFromCollection
-    }
-
-
-    public enum CellMode: String, Codable, Sendable {
-        /// The whole frame is shown, background around it. The default, and
-        /// settled: Fill centre-crops, v1 has no crop control, and so that crop
-        /// cannot be corrected. It is also a decision the tool made rather than
-        /// the photographer or chance, which is the one thing this instrument
-        /// is not supposed to do.
-        case fit
-        /// An even mosaic, at the cost of a crop nobody can adjust in v1.
-        case fill
-    }
-
-    /// 5 × 4 is a starting point, not a constraint.
-    ///
-    /// 8 × 8 at a 1 px gap and 3 × 2 at 4 px are both ordinary uses. What a grid
-    /// costs on paper is a print-time question and never a reason to bound what
-    /// can be played with on screen.
     public var columns: Int
     public var rows: Int
     /// Pixels on screen. On paper it is proportional, not absolute: printing
@@ -48,7 +86,6 @@ public struct SheetSettings: Codable, Sendable, Hashable {
     /// `gap ÷ window width × page width` and changes with the window.
     public var gap: Double
     public var backgroundHex: String
-    public var cellMode: CellMode
     public var cellShape: CellShape
     /// The sheet itself. `CellShape.matchPage` resolves against this.
     public var paper: Paper
@@ -58,21 +95,19 @@ public struct SheetSettings: Codable, Sendable, Hashable {
         rows: Int = 4,
         gap: Double = 12,
         backgroundHex: String = "#FFFFFF",
-        cellMode: CellMode = .fit,
-        cellShape: CellShape = .square,
+        cellShape: CellShape = .derivedFromCollection,
         paper: Paper = Paper()
     ) {
         self.columns = columns
         self.rows = rows
         self.gap = gap
         self.backgroundHex = backgroundHex
-        self.cellMode = cellMode
         self.cellShape = cellShape
         self.paper = paper
     }
 
     enum CodingKeys: String, CodingKey {
-        case columns, rows, gap, backgroundHex, cellMode, cellShape, paper
+        case columns, rows, gap, backgroundHex, cellShape, paper
     }
 
     /// Every field falls back to its default when the key is absent.
@@ -89,7 +124,6 @@ public struct SheetSettings: Codable, Sendable, Hashable {
         rows = try container.decodeIfPresent(Int.self, forKey: .rows) ?? fallback.rows
         gap = try container.decodeIfPresent(Double.self, forKey: .gap) ?? fallback.gap
         backgroundHex = try container.decodeIfPresent(String.self, forKey: .backgroundHex) ?? fallback.backgroundHex
-        cellMode = try container.decodeIfPresent(CellMode.self, forKey: .cellMode) ?? fallback.cellMode
         cellShape = try container.decodeIfPresent(CellShape.self, forKey: .cellShape) ?? fallback.cellShape
         paper = try container.decodeIfPresent(Paper.self, forKey: .paper) ?? fallback.paper
     }
@@ -104,18 +138,37 @@ public struct PhotoCollection: Identifiable, Codable, Sendable, Hashable {
     /// Ordered, and unique. Order is the import order until something reorders it.
     public private(set) var memberIDs: [ContentHash]
     public var settings: SheetSettings
+    /// Which photographs are held in which cells. Must survive a quit.
+    public var pins: [Pin]
 
     public init(
         id: UUID = UUID(),
         name: String,
         memberIDs: [ContentHash] = [],
-        settings: SheetSettings = SheetSettings()
+        settings: SheetSettings = SheetSettings(),
+        pins: [Pin] = []
     ) {
         self.id = id
         self.name = name
         self.memberIDs = []
         self.settings = settings
+        self.pins = pins
         add(memberIDs)
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, memberIDs, settings, pins
+    }
+
+    /// Defaulted, for the same reason `SheetSettings` is: `pins` did not exist
+    /// when the first libraries were written.
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        memberIDs = try container.decodeIfPresent([ContentHash].self, forKey: .memberIDs) ?? []
+        settings = try container.decodeIfPresent(SheetSettings.self, forKey: .settings) ?? SheetSettings()
+        pins = try container.decodeIfPresent([Pin].self, forKey: .pins) ?? []
     }
 
     @discardableResult
@@ -133,5 +186,6 @@ public struct PhotoCollection: Identifiable, Codable, Sendable, Hashable {
 
     public mutating func remove(_ ids: Set<ContentHash>) {
         memberIDs.removeAll { ids.contains($0) }
+        pins.removeAll { ids.contains($0.photo) }
     }
 }

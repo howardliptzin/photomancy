@@ -107,6 +107,19 @@ public final class LibraryStore {
         scheduleSave()
     }
 
+    /// Remembered so the app reopens where it was left. Not the arrangement —
+    /// only which collection was on screen.
+    public func setLastOpenedCollection(_ id: UUID?) {
+        guard document.lastOpenedCollection != id else { return }
+        document.lastOpenedCollection = id
+        scheduleSave()
+    }
+
+    public func updatePins(_ pins: [Pin], for collectionID: UUID?) {
+        document.updatePins(pins, for: collectionID)
+        scheduleSave()
+    }
+
     public func rename(_ id: UUID, to name: String) {
         guard let offset = document.collections.firstIndex(where: { $0.id == id }) else { return }
         document.collections[offset].name = name

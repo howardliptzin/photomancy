@@ -4,8 +4,8 @@ import CoreGraphics
 
 final class SheetSettingsTests: XCTestCase {
 
-    func testDefaultCellShapeIsSquare() {
-        XCTAssertEqual(SheetSettings().cellShape, .square)
+    func testDefaultCellShapeIsDerivedFromTheCollection() {
+        XCTAssertEqual(SheetSettings().cellShape, .derivedFromCollection)
     }
 
     /// The default is a starting value, not a constraint: each collection keeps
@@ -19,13 +19,14 @@ final class SheetSettingsTests: XCTestCase {
         wide.cellShape = .threeByTwo
         document.updateSettings(wide, for: panoramas.id)
 
-        var derived = SheetSettings()
-        derived.cellShape = .derivedFromCollection
-        document.updateSettings(derived, for: portraits.id)
+        var fixed = SheetSettings()
+        fixed.cellShape = .fourByThree
+        document.updateSettings(fixed, for: portraits.id)
 
         XCTAssertEqual(document.settings(for: panoramas.id).cellShape, .threeByTwo)
-        XCTAssertEqual(document.settings(for: portraits.id).cellShape, .derivedFromCollection)
-        XCTAssertEqual(document.settings(for: nil).cellShape, .square, "All Photos is untouched")
+        XCTAssertEqual(document.settings(for: portraits.id).cellShape, .fourByThree)
+        XCTAssertEqual(document.settings(for: nil).cellShape, .derivedFromCollection,
+                       "All Photos is untouched")
     }
 
     func testPerCollectionShapeSurvivesASaveAndLoad() throws {
@@ -47,6 +48,8 @@ final class SheetSettingsTests: XCTestCase {
     /// defaulted decoding this throws, and LibraryStore refuses to overwrite a
     /// file it could not read — so the person sees an empty grid and an intact
     /// library, which is the worst of both.
+    /// Including `cellMode`, which no longer exists — an unknown key must be
+    /// ignored, not fatal.
     func testSettingsWrittenBeforeCellShapeExistedStillLoad() throws {
         let old = Data("""
         {"columns":5,"rows":4,"gap":12,"backgroundHex":"#FFFFFF","cellMode":"fit"}
@@ -54,9 +57,8 @@ final class SheetSettingsTests: XCTestCase {
 
         let settings = try JSONDecoder().decode(SheetSettings.self, from: old)
 
-        XCTAssertEqual(settings.cellShape, .square)
+        XCTAssertEqual(settings.cellShape, .derivedFromCollection)
         XCTAssertEqual(settings.columns, 5)
-        XCTAssertEqual(settings.cellMode, .fit)
     }
 
     func testAnEmptySettingsObjectIsAllDefaults() throws {
@@ -114,5 +116,23 @@ final class SheetSettingsTests: XCTestCase {
         """.utf8)
         let settings = try JSONDecoder().decode(SheetSettings.self, from: old)
         XCTAssertEqual(settings.paper, Paper(size: .a4, orientation: .landscape))
+    }
+
+    /// A whole library written before pins and the remembered collection
+    /// existed. This is the shape actually on disk from earlier builds.
+    func testLibraryWrittenBeforePinsExistedStillLoads() throws {
+        let old = Data("""
+        {"version":1,"references":[],"collections":[
+          {"id":"7E1F0B6A-0000-4000-8000-000000000001","name":"Old","memberIDs":[],
+           "settings":{"columns":5,"rows":4,"gap":12,"backgroundHex":"#FFFFFF","cellMode":"fit"}}
+        ],"allPhotosSettings":{"columns":5,"rows":4,"gap":12,"backgroundHex":"#FFF","cellMode":"fit"}}
+        """.utf8)
+
+        let document = try JSONDecoder().decode(LibraryDocument.self, from: old)
+
+        XCTAssertEqual(document.collections.count, 1)
+        XCTAssertEqual(document.collections[0].pins, [])
+        XCTAssertEqual(document.allPhotosPins, [])
+        XCTAssertNil(document.lastOpenedCollection)
     }
 }
