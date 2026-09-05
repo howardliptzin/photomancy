@@ -49,6 +49,20 @@ narrative or editorial sequencing.**
   more surprise per roll, not a shortfall. Fewer photographs than cells: the spare
   cells stay empty and show the background. Never repeat a photograph to fill a
   grid; a duplicate reads as a bug rather than a choice.
+- **Nothing caps the grid by policy — find the limit by using the loop.** Memory does
+  not grow with cell count: cells tile the window, so the decoded total tracks the
+  window's *area*, not the number of cells. More cells means smaller ones. What binds
+  first is the cold fill, which scales with cell count while each decode gets cheaper
+  as cells shrink; every visit after the first comes from the disk cache and is
+  trivial. Watch the first fill, not memory.
+- **The memory cache limit is a function of window area, not a constant.** Thumbnails
+  are bucketed up to 1.5× their cell, and a cell's bucket is its long edge, so the
+  decoded total is roughly two to four times the window's pixel count in bytes — a 5K
+  window is 130–270 MB. The current fixed 256 MB happens to fit that and will not fit
+  the next display. Derive it.
+- **An empty cell is background and nothing else.** No outline, no placeholder, no
+  hint that a cell is there — identical on screen and on paper. A grid that is not
+  full should look like a grid that is not full.
 - **The gap is pixels on screen and proportional on paper.** Printing scales the
   sheet uniformly, so a 12 px gap is not a fixed physical measure — it is
   `gap ÷ window width × page width`, and it changes with the window. Report the
@@ -153,10 +167,5 @@ one, refuse and point here.
 
 ## Unsettled — ask, don't assume
 
-- **The upper bound on a grid.** "As few constraints as possible" still has a limit
-  somewhere: past a certain cell count the cells fall below the smallest thumbnail
-  bucket and the app decodes more than it can show. Find it by using the loop, not
-  by guessing.
-- **Whether an empty cell reads as empty.** With fewer photographs than cells, a
-  spare cell shows the background — which on screen may want a faint indication that
-  it is a cell rather than a gap, and on paper must be nothing at all.
+Nothing open. New questions belong here, where they will be seen, rather than
+buried in a commit message or a code comment.
