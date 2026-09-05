@@ -1,4 +1,6 @@
 import Foundation
+import ImageIO
+import CoreGraphics
 import UniformTypeIdentifiers
 import PhotomancyCore
 
@@ -60,6 +62,57 @@ func formatFamily(_ url: URL) -> String? {
 
 func fileSize(_ url: URL) -> Int {
     (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+}
+
+// ── a picture of what layout() actually returns ──────────────────────────────
+//
+// The geometry is covered by tests, but its *placement* is not, and a
+// half-a-cell offset produces a plausible grid that is subtly wrong. Drawing the
+// real rectangles into a CGContext is both the check for that and a rehearsal
+// for M5, where the print path does exactly this.
+//
+//   photomancy-bench --render-layout out.png <cols> <rows> <gap> <aspect|fill> <w> <h>
+if let flag = CommandLine.arguments.firstIndex(of: "--render-layout") {
+    let a = Array(CommandLine.arguments.dropFirst(flag + 1))
+    guard a.count >= 7,
+          let cols = Int(a[1]), let rows = Int(a[2]), let gap = Double(a[3]),
+          let width = Double(a[5]), let height = Double(a[6])
+    else {
+        print("usage: --render-layout out.png <cols> <rows> <gap> <aspect|fill> <w> <h>")
+        exit(2)
+    }
+    let aspect: Double? = a[4] == "fill" ? nil : Double(a[4])
+    let canvas = CGSize(width: width, height: height)
+    let cells = layout(cols: cols, rows: rows, gap: gap, cellAspect: aspect, canvas: canvas)
+
+    let background = SheetColor(hex: "#FFFFFF") ?? .white
+    let ink = background.blended(toward: background.contrastingInk, amount: 0.72)
+    guard let context = CGContext(
+        data: nil, width: Int(width), height: Int(height),
+        bitsPerComponent: 8, bytesPerRow: 0,
+        space: CGColorSpace(name: CGColorSpace.sRGB)!,
+        bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue
+    ) else { exit(1) }
+
+    context.setFillColor(background.cgColor)
+    context.fill(CGRect(origin: .zero, size: canvas))
+    context.setFillColor(ink.cgColor)
+    for cell in cells { context.fill(cell) }
+
+    guard let image = context.makeImage(),
+          let destination = CGImageDestinationCreateWithURL(
+              URL(fileURLWithPath: a[0]) as CFURL, UTType.png.identifier as CFString, 1, nil
+          ) else { exit(1) }
+    CGImageDestinationAddImage(destination, image, nil)
+    guard CGImageDestinationFinalize(destination) else { exit(1) }
+
+    let inset = cells.first.map { ($0.minX, $0.minY) } ?? (0, 0)
+    let trailing = cells.last.map { (width - $0.maxX, height - $0.maxY) } ?? (0, 0)
+    print(String(format: "%d cells, %.1f x %.1f each", cells.count,
+                 cells.first?.width ?? 0, cells.first?.height ?? 0))
+    print(String(format: "margins  left %.1f  top %.1f  right %.1f  bottom %.1f",
+                 inset.0, inset.1, trailing.0, trailing.1))
+    exit(0)
 }
 
 let options = parseOptions()
