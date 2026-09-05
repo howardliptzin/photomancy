@@ -138,7 +138,12 @@ public enum Importer {
             case .success(let reference):
                 result.references.append(reference)
             case .failure(let error):
-                log.error("import failed for \(name, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                let underlying = (error as? PhotoAccessError).flatMap { access -> String? in
+                    guard case .unresolvable(_, let cause) = access, let cause else { return nil }
+                    let nsError = cause as NSError
+                    return " [\(nsError.domain) \(nsError.code): \(nsError.localizedDescription)]"
+                } ?? ""
+                log.error("import failed for \(name, privacy: .public): \(error.localizedDescription, privacy: .public)\(underlying, privacy: .public)")
                 result.failures.append((name: name, error: error))
             }
         }

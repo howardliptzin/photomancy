@@ -263,6 +263,9 @@ final class LibraryController {
 
     // MARK: - Import
 
+    /// Held until the import finishes — see `presentImportPanel`.
+    private var openPanel: NSOpenPanel?
+
     func presentImportPanel() {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = true
@@ -272,15 +275,32 @@ final class LibraryController {
         panel.message = "Choose photographs, or a folder of photographs."
         panel.prompt = "Import"
         guard panel.runModal() == .OK else { return }
-        importPhotographs(from: panel.urls)
+
+        // Hold the panel until the import has finished.
+        //
+        // Importing is asynchronous, so without this the panel is released the
+        // moment this function returns — long before the bookmarks are written.
+        // Files chosen through the panel are vended by Powerbox, and dropping
+        // its object while the grant is still being relied on is the difference
+        // between this route and the two that work: a drop carries its grant on
+        // the pasteboard, and Open With gets one from LaunchServices, neither of
+        // which has an object to release underneath them.
+        openPanel = panel
+        importPhotographs(from: panel.urls) { [weak self] in
+            self?.openPanel = nil
+        }
     }
 
-    func importPhotographs(from urls: [URL]) {
-        guard !urls.isEmpty else { return }
+    func importPhotographs(from urls: [URL], completion: (@MainActor () -> Void)? = nil) {
+        guard !urls.isEmpty else {
+            completion?()
+            return
+        }
         let destination = selection
         importProgress = ImportProgress(completed: 0, total: 0)
 
         Task {
+            defer { completion?() }
             let result = await Importer.makeReferences(for: urls) { completed, total in
                 Task { @MainActor in
                     self.importProgress = ImportProgress(completed: completed, total: total)
