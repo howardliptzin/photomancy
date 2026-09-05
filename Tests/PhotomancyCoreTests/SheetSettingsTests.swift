@@ -72,6 +72,34 @@ final class SheetSettingsTests: XCTestCase {
         XCTAssertEqual(SheetSettings().rows, 4)
     }
 
+    /// The grid controls write straight through to the collection, so the sheet
+    /// a person leaves is the sheet they come back to.
+    @MainActor
+    func testTheStorePersistsSettingsPerCollection() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("photomancy-store-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let file = directory.appendingPathComponent("library.json")
+
+        let store = LibraryStore(fileURL: file)
+        store.load()
+        let collection = store.addCollection(named: "Set")
+        var settings = store.document.settings(for: collection.id)
+        settings.columns = 8
+        settings.rows = 8
+        settings.gap = 1
+        store.updateSettings(settings, for: collection.id)
+        store.saveNow()
+
+        let reopened = LibraryStore(fileURL: file)
+        reopened.load()
+        XCTAssertEqual(reopened.document.settings(for: collection.id).columns, 8)
+        XCTAssertEqual(reopened.document.settings(for: collection.id).rows, 8)
+        XCTAssertEqual(reopened.document.settings(for: collection.id).gap, 1)
+        XCTAssertEqual(reopened.document.settings(for: nil).columns, 5, "All Photos untouched")
+    }
+
     // MARK: - Paper
 
     func testDefaultPaperIsA4Landscape() {

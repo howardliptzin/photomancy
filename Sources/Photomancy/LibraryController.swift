@@ -84,6 +84,33 @@ final class LibraryController {
         store.document.settings(for: selection)
     }
 
+    /// Written straight through to the collection's stored settings, so the
+    /// sheet a person leaves is the sheet they come back to.
+    private func updateSettings(_ change: (inout SheetSettings) -> Void) {
+        var settings = self.settings
+        change(&settings)
+        store.updateSettings(settings, for: selection)
+    }
+
+    var columns: Int {
+        get { settings.columns }
+        set { updateSettings { $0.columns = max(1, newValue) } }
+    }
+
+    var rows: Int {
+        get { settings.rows }
+        set { updateSettings { $0.rows = max(1, newValue) } }
+    }
+
+    var gap: Double {
+        get { settings.gap }
+        set { updateSettings { $0.gap = max(0, newValue) } }
+    }
+
+    /// How many cells the current grid has, against how many photographs there
+    /// are to put in them. Neither number constrains the other.
+    var cellCount: Int { columns * rows }
+
     /// Cached rather than resolved per frame.
     ///
     /// A derived cell shape clusters every ratio in the collection, and the

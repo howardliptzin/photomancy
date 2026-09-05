@@ -44,6 +44,7 @@ struct ContentView: View {
                 settings: controller.settings,
                 cellAspect: controller.cellAspect
             )
+            .safeAreaInset(edge: .bottom, spacing: 0) { SheetControls() }
             .task(id: photographs.count) {
                 try? await Task.sleep(for: .seconds(2))
                 controller.logCacheSummary()
