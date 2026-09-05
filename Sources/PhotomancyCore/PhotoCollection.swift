@@ -16,8 +16,6 @@ public struct SheetSettings: Codable, Sendable, Hashable {
         case square
         case threeByTwo
         case fourByThree
-        /// The cell takes the proportions of the sheet it prints on.
-        case matchPage
         /// The most common ratio in the collection.
         ///
         /// Offered, never a default: it would change the shape of a sheet on
@@ -38,17 +36,16 @@ public struct SheetSettings: Codable, Sendable, Hashable {
         case fill
     }
 
-    /// 5 × 4 by default, and deliberately not the ratio that fills A4 landscape.
+    /// 5 × 4 is a starting point, not a constraint.
     ///
-    /// A grid of squares 5 wide and 4 high has an aspect of 1.25 against a page
-    /// of about 1.46, so the height binds and roughly 20 mm of paper is left down
-    /// each side. Six columns would fill the width exactly, but only by opening
-    /// the gap to about 16 mm and shrinking cells from 42 mm to 27 mm. Bigger
-    /// photographs beat tidier edges, and a centred block with generous margins
-    /// is what a contact sheet has always looked like.
+    /// 8 × 8 at a 1 px gap and 3 × 2 at 4 px are both ordinary uses. What a grid
+    /// costs on paper is a print-time question and never a reason to bound what
+    /// can be played with on screen.
     public var columns: Int
     public var rows: Int
-    /// Pixels on screen, converted for print at the chosen resolution.
+    /// Pixels on screen. On paper it is proportional, not absolute: printing
+    /// scales the whole sheet uniformly, so the physical gap is
+    /// `gap ÷ window width × page width` and changes with the window.
     public var gap: Double
     public var backgroundHex: String
     public var cellMode: CellMode

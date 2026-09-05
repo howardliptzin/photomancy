@@ -25,6 +25,14 @@ narrative or editorial sequencing.**
 - **One pure `layout()` function** returns cell rectangles from
   `(cols, rows, gap, cellAspect, canvas)`. Screen positions views with them; print
   draws into a `CGContext` with them. Geometry shared, drawing not.
+- **The canvas is the window, not the page.** The sheet fills the window and
+  reflows live as it is resized. Print does not recompute geometry: it takes the
+  rectangles `layout()` already produced for the window and applies one uniform
+  scale-and-translate onto the page's printable rect. Exact by construction rather
+  than by discipline. Still one page, still no pagination, and no page breaks.
+- **The grid block scales; the cell shape is held.** Filling the window means cells
+  grow as large as they can while keeping their shape, centred, with dead space at
+  two window edges. Cells never distort to fit a window. Screen space is free.
 - **Fit is the default cell mode.** Fill centre-crops, and v1 has no crop control,
   so that crop is uncorrectable. A crop is also a decision the *tool* made — not
   the photographer, not chance.
@@ -34,13 +42,20 @@ narrative or editorial sequencing.**
   event, not an edge case. Options: square, 3:2, 4:3, match the page, derived from
   the collection. `derivedFromCollection` is a choice someone makes and never a
   default: it would reflow a sheet on import with nothing on screen to say why.
-- **5 × 4 is the default grid, and the side margins on A4 landscape are accepted.**
-  Square cells 5 across and 4 down are narrower than the page, so the block sits
-  centred with about 20 mm of paper each side. Filling the width needs a much wider
-  gap and much smaller cells. Do not "fix" this by changing the default grid.
-- **Paper is a per-collection setting**, starting at **A4 landscape** — which makes
-  the default output a contact sheet. It is a sheet setting, not a printer setting:
-  "what you see is one page" means the paper's proportions shape the screen.
+- **5 × 4 is a starting grid, not a constraint.** 8 × 8 at a 1 px gap and 3 × 2 at
+  4 px are both ordinary uses. Never bound what can be played with on screen
+  because of what it would cost on paper.
+- **More photographs than cells: every roll samples a different subset** — which is
+  more surprise per roll, not a shortfall. Fewer photographs than cells: the spare
+  cells stay empty and show the background. Never repeat a photograph to fill a
+  grid; a duplicate reads as a bug rather than a choice.
+- **The gap is pixels on screen and proportional on paper.** Printing scales the
+  sheet uniformly, so a 12 px gap is not a fixed physical measure — it is
+  `gap ÷ window width × page width`, and it changes with the window. Report the
+  resulting millimetres in the print dialog instead of pretending otherwise.
+- **Paper is the print target**, remembered per collection, starting at **A4
+  landscape** — which makes the default output a contact sheet. It does not shape
+  the screen; it is consulted only when scaling a sheet onto a page.
 - **Every sheet setting is per collection**, All Photos included, and every one of
   them decodes with a default when its key is missing. Settings are the part of the
   store that grows, and `LibraryStore.load()` refuses to overwrite a file it could
@@ -49,7 +64,6 @@ narrative or editorial sequencing.**
 - **Never `LazyVGrid` for the sheet** — its geometry is invisible to the print path
   and the two will drift.
 - **Print draws from full-resolution images**, never screen thumbnails.
-- **What you see is one page.** No pagination in v1.
 - **Security-scoped bookmarks** stored at import and resolved before every read.
   Without this, collections are empty on second launch. Build it right on day one.
 - **Content hash** identifies a photo (survives renames) and keys the thumbnail cache.
@@ -139,11 +153,10 @@ one, refuse and point here.
 
 ## Unsettled — ask, don't assume
 
-- **What the canvas is.** Paper is A4 landscape; the printable area is not the
-  paper. Either `layout()` fills the printer's imageable rect — correct, but the
-  on-screen sheet then changes shape with the printer — or the app owns a margin
-  and clamps it to the imageable rect at print time — predictable, and the same on
-  every machine. Proposal: the latter, with the outer margin equal to `gap`, so
-  "padding, exact to the pixel" means one number everywhere. Needed before M2.
-- **Print resolution** for converting the pixel `gap` to a physical measure. 300 dpi
-  unless there is a reason otherwise. Needed at M5, not before.
+- **The upper bound on a grid.** "As few constraints as possible" still has a limit
+  somewhere: past a certain cell count the cells fall below the smallest thumbnail
+  bucket and the app decodes more than it can show. Find it by using the loop, not
+  by guessing.
+- **Whether an empty cell reads as empty.** With fewer photographs than cells, a
+  spare cell shows the background — which on screen may want a faint indication that
+  it is a cell rather than a gap, and on paper must be nothing at all.

@@ -1,9 +1,12 @@
 import Foundation
 import CoreGraphics
 
-/// The sheet the grid is. Not a print-time detail: "what you see is one page"
-/// means the paper's proportions shape what is on screen, so this belongs to the
-/// collection's settings rather than to the printer.
+/// Where a sheet gets printed.
+///
+/// This does not shape the screen — the window does that. Paper is consulted only
+/// when the rectangles `layout()` produced for the window are scaled onto a page.
+/// It is remembered per collection because a collection tends to be printed the
+/// same way each time, not because it constrains what is on screen.
 ///
 /// A4 landscape is the default, which makes the default output a contact sheet.
 public struct Paper: Codable, Sendable, Hashable {
@@ -51,7 +54,8 @@ public struct Paper: Codable, Sendable, Hashable {
         )
     }
 
-    /// What `CellShape.matchPage` resolves to.
+    /// Used to letterbox the window's sheet onto the page: the window's aspect
+    /// will rarely match this, and the difference is blank paper on two sides.
     public var aspect: Double {
         let size = millimetres
         guard size.height > 0 else { return 1 }

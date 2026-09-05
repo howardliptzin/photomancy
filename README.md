@@ -4,7 +4,13 @@ Divination by photograph.
 
 A native macOS instrument for finding photographic sequences by chance: import a
 set of photographs, roll them into a grid, keep what surprises you, roll the rest
-again. It prints.
+again.
+
+The screen is the instrument. The grid fills the window and reflows as you resize
+it — 64 photographs at 8 × 8 with a hairline gap, or six at 3 × 2 — so sequencing
+happens at whatever density the work wants. Printing takes what is on screen and
+scales it onto a single sheet; it exists to make a hard copy of a result, not to
+constrain how you arrive at one.
 
 Free, open source, and distributed through the Mac App Store.
 
