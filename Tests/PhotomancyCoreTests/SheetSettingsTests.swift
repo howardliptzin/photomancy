@@ -64,6 +64,13 @@ final class SheetSettingsTests: XCTestCase {
         XCTAssertEqual(settings, SheetSettings())
     }
 
+    /// Settled: the side margins on A4 landscape are accepted, not a bug to be
+    /// tuned away by quietly changing the default grid.
+    func testDefaultGridIsFiveByFour() {
+        XCTAssertEqual(SheetSettings().columns, 5)
+        XCTAssertEqual(SheetSettings().rows, 4)
+    }
+
     // MARK: - Paper
 
     func testDefaultPaperIsA4Landscape() {

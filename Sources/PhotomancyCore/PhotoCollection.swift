@@ -38,6 +38,14 @@ public struct SheetSettings: Codable, Sendable, Hashable {
         case fill
     }
 
+    /// 5 × 4 by default, and deliberately not the ratio that fills A4 landscape.
+    ///
+    /// A grid of squares 5 wide and 4 high has an aspect of 1.25 against a page
+    /// of about 1.46, so the height binds and roughly 20 mm of paper is left down
+    /// each side. Six columns would fill the width exactly, but only by opening
+    /// the gap to about 16 mm and shrinking cells from 42 mm to 27 mm. Bigger
+    /// photographs beat tidier edges, and a centred block with generous margins
+    /// is what a contact sheet has always looked like.
     public var columns: Int
     public var rows: Int
     /// Pixels on screen, converted for print at the chosen resolution.

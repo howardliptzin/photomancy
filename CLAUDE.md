@@ -34,6 +34,10 @@ narrative or editorial sequencing.**
   event, not an edge case. Options: square, 3:2, 4:3, match the page, derived from
   the collection. `derivedFromCollection` is a choice someone makes and never a
   default: it would reflow a sheet on import with nothing on screen to say why.
+- **5 × 4 is the default grid, and the side margins on A4 landscape are accepted.**
+  Square cells 5 across and 4 down are narrower than the page, so the block sits
+  centred with about 20 mm of paper each side. Filling the width needs a much wider
+  gap and much smaller cells. Do not "fix" this by changing the default grid.
 - **Paper is a per-collection setting**, starting at **A4 landscape** — which makes
   the default output a contact sheet. It is a sheet setting, not a printer setting:
   "what you see is one page" means the paper's proportions shape the screen.
