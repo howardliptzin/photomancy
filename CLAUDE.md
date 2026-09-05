@@ -187,6 +187,9 @@ or because it is cheap. Features are added after release only on enough user req
 ## Working conventions
 
 - Build and test from the shell (`xcodebuild`), not the Xcode GUI.
+- **Use `/usr/bin/log`, never bare `log`** — `log` is a zsh builtin, so `log show`
+  silently returns nothing from an interactive shell and every check that reads the
+  app's diagnostics quietly passes for the wrong reason.
 - **Push correctness into pure, testable functions** — `layout()`, hashing, cache keys.
   I can verify those alone with XCTest; I cannot inspect a running SwiftUI view the
   way I can a DOM. Thin views, tested logic.
