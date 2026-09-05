@@ -45,6 +45,8 @@ public struct SheetSettings: Codable, Sendable, Hashable {
     public var backgroundHex: String
     public var cellMode: CellMode
     public var cellShape: CellShape
+    /// The sheet itself. `CellShape.matchPage` resolves against this.
+    public var paper: Paper
 
     public init(
         columns: Int = 5,
@@ -52,7 +54,8 @@ public struct SheetSettings: Codable, Sendable, Hashable {
         gap: Double = 12,
         backgroundHex: String = "#FFFFFF",
         cellMode: CellMode = .fit,
-        cellShape: CellShape = .square
+        cellShape: CellShape = .square,
+        paper: Paper = Paper()
     ) {
         self.columns = columns
         self.rows = rows
@@ -60,10 +63,11 @@ public struct SheetSettings: Codable, Sendable, Hashable {
         self.backgroundHex = backgroundHex
         self.cellMode = cellMode
         self.cellShape = cellShape
+        self.paper = paper
     }
 
     enum CodingKeys: String, CodingKey {
-        case columns, rows, gap, backgroundHex, cellMode, cellShape
+        case columns, rows, gap, backgroundHex, cellMode, cellShape, paper
     }
 
     /// Every field falls back to its default when the key is absent.
@@ -82,6 +86,7 @@ public struct SheetSettings: Codable, Sendable, Hashable {
         backgroundHex = try container.decodeIfPresent(String.self, forKey: .backgroundHex) ?? fallback.backgroundHex
         cellMode = try container.decodeIfPresent(CellMode.self, forKey: .cellMode) ?? fallback.cellMode
         cellShape = try container.decodeIfPresent(CellShape.self, forKey: .cellShape) ?? fallback.cellShape
+        paper = try container.decodeIfPresent(Paper.self, forKey: .paper) ?? fallback.paper
     }
 }
 

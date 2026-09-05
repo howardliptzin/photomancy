@@ -34,6 +34,9 @@ narrative or editorial sequencing.**
   event, not an edge case. Options: square, 3:2, 4:3, match the page, derived from
   the collection. `derivedFromCollection` is a choice someone makes and never a
   default: it would reflow a sheet on import with nothing on screen to say why.
+- **Paper is a per-collection setting**, starting at **A4 landscape** — which makes
+  the default output a contact sheet. It is a sheet setting, not a printer setting:
+  "what you see is one page" means the paper's proportions shape the screen.
 - **Every sheet setting is per collection**, All Photos included, and every one of
   them decodes with a default when its key is missing. Settings are the part of the
   store that grows, and `LibraryStore.load()` refuses to overwrite a file it could
@@ -132,8 +135,11 @@ one, refuse and point here.
 
 ## Unsettled — ask, don't assume
 
-- **Where the page lives.** `matchPage` needs a paper size and orientation, and
-  nothing owns one yet — it is not in `SheetSettings`, and print is M5. Decide
-  whether paper is per collection or app-wide before M2 resolves a cell shape to a
-  number, because `matchPage` and `derivedFromCollection` are the two shapes that
-  cannot be resolved from the setting alone.
+- **What the canvas is.** Paper is A4 landscape; the printable area is not the
+  paper. Either `layout()` fills the printer's imageable rect — correct, but the
+  on-screen sheet then changes shape with the printer — or the app owns a margin
+  and clamps it to the imageable rect at print time — predictable, and the same on
+  every machine. Proposal: the latter, with the outer margin equal to `gap`, so
+  "padding, exact to the pixel" means one number everywhere. Needed before M2.
+- **Print resolution** for converting the pixel `gap` to a physical measure. 300 dpi
+  unless there is a reason otherwise. Needed at M5, not before.
