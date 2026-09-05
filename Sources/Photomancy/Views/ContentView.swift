@@ -39,11 +39,15 @@ struct ContentView: View {
         if photographs.isEmpty {
             EmptyLibraryView()
         } else {
-            PhotoGridView(photographs: photographs)
-                .task(id: photographs.count) {
-                    try? await Task.sleep(for: .seconds(2))
-                    controller.logCacheSummary()
-                }
+            SheetView(
+                photographs: photographs,
+                settings: controller.settings,
+                cellAspect: controller.cellAspect
+            )
+            .task(id: photographs.count) {
+                try? await Task.sleep(for: .seconds(2))
+                controller.logCacheSummary()
+            }
         }
     }
 

@@ -74,6 +74,36 @@ public struct SheetColor: Sendable, Hashable {
         return alpha >= 1 ? opaque : opaque + byte(alpha)
     }
 
+    /// Perceived brightness, 0 to 1. Used to decide what will read against this.
+    public var relativeLuminance: Double {
+        0.2126 * red + 0.7152 * green + 0.0722 * blue
+    }
+
+    /// Black or white, whichever is legible on this colour. The sheet's
+    /// background is the person's choice and can be anything, so nothing drawn
+    /// over it may assume a light ground.
+    public var contrastingInk: SheetColor {
+        relativeLuminance > 0.5 ? .black : .white
+    }
+
+    /// Linear mix. `amount` 0 returns this colour, 1 returns the other.
+    public func blended(toward other: SheetColor, amount: Double) -> SheetColor {
+        let amount = amount.isFinite ? min(max(amount, 0), 1) : 0
+        return SheetColor(
+            red: red + (other.red - red) * amount,
+            green: green + (other.green - green) * amount,
+            blue: blue + (other.blue - blue) * amount,
+            alpha: alpha + (other.alpha - alpha) * amount
+        )
+    }
+
+    /// Stands in for a photograph that is still decoding. Barely visible, and
+    /// derived from the background so it reads on a dark sheet as well as a
+    /// light one. A cell with no photograph at all draws nothing instead.
+    public var placeholderTint: SheetColor {
+        blended(toward: contrastingInk, amount: 0.07)
+    }
+
     public var cgColor: CGColor {
         CGColor(srgbRed: red, green: green, blue: blue, alpha: alpha)
     }

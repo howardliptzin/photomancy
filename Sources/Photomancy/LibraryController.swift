@@ -18,6 +18,7 @@ final class LibraryController {
     /// `nil` is All Photos — the virtual collection, and the first-launch view.
     var selection: UUID? {
         didSet {
+            refreshCellAspect()
             guard isRestored else { return }
             store.setLastOpenedCollection(selection)
         }
@@ -67,6 +68,7 @@ final class LibraryController {
             store.document.collections.contains { $0.id == id } ? id : nil
         }
         isRestored = true
+        refreshCellAspect()
 
         log.info("launched with \(self.store.document.references.count) references")
         #if DEBUG
@@ -76,6 +78,23 @@ final class LibraryController {
 
     var photographs: [PhotoReference] {
         store.photos(in: selection)
+    }
+
+    var settings: SheetSettings {
+        store.document.settings(for: selection)
+    }
+
+    /// Cached rather than resolved per frame.
+    ///
+    /// A derived cell shape clusters every ratio in the collection, and the
+    /// sheet re-lays out on every resize tick — recomputing there would walk the
+    /// whole library dozens of times a second. Recomputed when the collection
+    /// changes and when photographs arrive, which is exactly the settled
+    /// behaviour: a derived shape re-derives on import.
+    private(set) var cellAspect: Double = 1
+
+    func refreshCellAspect() {
+        cellAspect = store.document.cellAspect(for: selection)
     }
 
     var currentTitle: String {
@@ -112,6 +131,7 @@ final class LibraryController {
             }
             let added = store.add(result.references, to: destination)
             store.saveNow()
+            refreshCellAspect()
             importProgress = nil
 
             let duplicates = result.references.count - added

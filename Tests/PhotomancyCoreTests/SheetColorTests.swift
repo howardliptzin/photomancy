@@ -69,6 +69,52 @@ final class SheetColorTests: XCTestCase {
         XCTAssertEqual(Double(components[2]), colour.blue, accuracy: 1e-6)
     }
 
+    // MARK: - Reading against the background
+
+    func testContrastingInkFollowsTheBackground() {
+        XCTAssertEqual(SheetColor.white.contrastingInk, .black)
+        XCTAssertEqual(SheetColor.black.contrastingInk, .white)
+        XCTAssertEqual(SheetColor(hex: "#EEEEEE")?.contrastingInk, .black)
+        XCTAssertEqual(SheetColor(hex: "#222222")?.contrastingInk, .white)
+    }
+
+    /// Green reads far brighter than blue at the same value — a naive average
+    /// would put white ink on a mid-green sheet.
+    func testLuminanceIsWeightedByChannel() throws {
+        let green = try XCTUnwrap(SheetColor(hex: "#00FF00"))
+        let blue = try XCTUnwrap(SheetColor(hex: "#0000FF"))
+        XCTAssertGreaterThan(green.relativeLuminance, blue.relativeLuminance)
+        XCTAssertEqual(green.contrastingInk, .black)
+        XCTAssertEqual(blue.contrastingInk, .white)
+    }
+
+    func testBlendingHitsBothEnds() {
+        XCTAssertEqual(SheetColor.white.blended(toward: .black, amount: 0), .white)
+        XCTAssertEqual(SheetColor.white.blended(toward: .black, amount: 1), .black)
+        let half = SheetColor.white.blended(toward: .black, amount: 0.5)
+        XCTAssertEqual(half.red, 0.5, accuracy: epsilon)
+    }
+
+    func testBlendAmountIsClamped() {
+        XCTAssertEqual(SheetColor.white.blended(toward: .black, amount: 5), .black)
+        XCTAssertEqual(SheetColor.white.blended(toward: .black, amount: -5), .white)
+        XCTAssertEqual(SheetColor.white.blended(toward: .black, amount: .nan), .white)
+    }
+
+    /// The placeholder has to be visible on any sheet the person chooses, so it
+    /// moves away from the background rather than toward a fixed grey.
+    func testThePlaceholderTintMovesAwayFromTheBackgroundEitherWay() throws {
+        let onWhite = SheetColor.white.placeholderTint
+        XCTAssertLessThan(onWhite.relativeLuminance, SheetColor.white.relativeLuminance)
+
+        let onBlack = SheetColor.black.placeholderTint
+        XCTAssertGreaterThan(onBlack.relativeLuminance, SheetColor.black.relativeLuminance)
+
+        // Quiet on both: it stands in for a photograph, it does not announce itself.
+        XCTAssertLessThan(abs(onWhite.relativeLuminance - 1), 0.12)
+        XCTAssertLessThan(abs(onBlack.relativeLuminance - 0), 0.12)
+    }
+
     // MARK: - As a setting
 
     func testTheDefaultSheetBackgroundIsWhite() {
