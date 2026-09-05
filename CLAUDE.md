@@ -133,10 +133,16 @@ poor relation.
 | `←` `→` | In lightbox: move through photos |
 | `Esc` | Close lightbox |
 | `⌘Z` / `⇧⌘Z` | Step through arrangements |
+| `?` | Show the keyboard legend — `Esc` closes it |
 | `⌘P` | Print (also yields PDF) |
 
 - **A pin is marked with a white dot with a thin black outline, in the upper left
   corner of the frame.** One mark, one place, no variants.
+- **The shortcuts get a legend, two ways.** Every action is a menu item showing its
+  key equivalent, and every toolbar button's tooltip names its shortcut — the native
+  baseline, which the menu bar needs anyway. Plus a `?` overlay over the sheet,
+  dismissed with `Esc`, because the loop is a full-window activity and nobody is
+  looking at the menu bar while they are in it.
 - **Undo spans shuffles.** Non-negotiable — it's what makes gambling on chance safe.
 - Click pins, double-click zooms. This is deliberately **inverted** from the web app.
 - Randomize animates cells to new positions (~200ms), respecting
@@ -203,5 +209,3 @@ or because it is cheap. Features are added after release only on enough user req
   decide it once M2 makes the reflow visible.
 - **How the cell-shape override is chosen.** A pull-down near the collection title is
   the current proposal. Settle it with the rest of the sheet controls in M2.
-- **Which form the keyboard-shortcut legend takes.** Alternatives offered; pick one
-  before M3, since the loop is when the shortcuts start to matter.
