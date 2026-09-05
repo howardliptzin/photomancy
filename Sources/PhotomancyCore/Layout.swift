@@ -26,6 +26,29 @@ import CoreGraphics
 /// Rectangles are deliberately not snapped to whole pixels. Snapping is a screen
 /// concern applied when views are placed; baking it in here would carry screen
 /// artefacts onto paper.
+/// The photograph's rectangle inside its cell, under Fit.
+///
+/// The whole frame is shown, centred, with background around it. Needed wherever
+/// something is placed against the photograph rather than against the cell — the
+/// pin mark sits on the frame's corner, not the cell's, or it would float in
+/// background whenever the two shapes differ. M5 draws into this same rectangle.
+public func fitted(aspectRatio: Double, in cell: CGRect) -> CGRect {
+    guard aspectRatio.isFinite, aspectRatio > 0,
+          cell.width > 0, cell.height > 0 else { return cell }
+
+    let cellAspect = cell.width / cell.height
+    let size: CGSize = aspectRatio > cellAspect
+        ? CGSize(width: cell.width, height: cell.width / aspectRatio)   // wider than the cell
+        : CGSize(width: cell.height * aspectRatio, height: cell.height) // taller, or equal
+
+    return CGRect(
+        x: cell.midX - size.width / 2,
+        y: cell.midY - size.height / 2,
+        width: size.width,
+        height: size.height
+    )
+}
+
 public func layout(
     cols: Int,
     rows: Int,

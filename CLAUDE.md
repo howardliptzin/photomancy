@@ -9,9 +9,9 @@ Read it before writing code. Section numbers below refer to it.
 
 **M2 plan:** https://claude.ai/code/artifact/64a6432f-5628-4671-a186-caa7fbe960f7
 
-**Status:** M1 complete and verified — sandboxed scaffold, import, collections,
-security-scoped bookmarks, thumbnail cache. Next is M2 (§08), the layout function,
-and it gets planned before it gets coded.
+**Status:** M1–M3 complete. Import, collections, bookmarks and the thumbnail cache;
+`layout()` and the sheet; the loop — randomize, pin, reset, undo. Next is dogfooding:
+the brief recommends using it on real work for a week before building anything else.
 
 ## What this is
 
