@@ -16,7 +16,9 @@ Free, open source, and distributed through the Mac App Store.
 
 ## Status
 
-In development. Nothing to install yet.
+In development; nothing to install yet. Import, collections, security-scoped
+bookmarks and the thumbnail cache are built and verified. The layout engine, the
+loop, and printing are not.
 
 ## Building
 
@@ -44,9 +46,15 @@ URL stays authorised for the life of the process. This script imports, quits,
 deletes the thumbnail cache, and relaunches, so what appears on the second
 launch can only have come from the originals.
 
+It needs photographs to work with. `TestPhotos/` is ignored by git, so put a
+handful of your own there first — a mix of JPEG, HEIC and PNG is the useful case.
+
 ```
 ./Scripts/verify-relaunch.sh
 ```
+
+Pass a different app or folder as arguments if you want:
+`./Scripts/verify-relaunch.sh path/to/Photomancy.app ~/some/photos`
 
 ### Measuring
 

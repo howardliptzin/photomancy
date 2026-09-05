@@ -7,7 +7,9 @@ sandboxed). SwiftUI, Swift 6, macOS 14+.
 https://claude.ai/code/artifact/5917d4a2-04fb-4561-87ce-7844ceb530ba
 Read it before writing code. Section numbers below refer to it.
 
-**Status:** nothing built yet. First milestone is M1 (§08).
+**Status:** M1 complete and verified — sandboxed scaffold, import, collections,
+security-scoped bookmarks, thumbnail cache. Next is M2 (§08), the layout function,
+and it gets planned before it gets coded.
 
 ## What this is
 
@@ -39,8 +41,8 @@ narrative or editorial sequencing.**
 - **Cell shape is a per-collection setting**, starting at **square**. Square is the
   only shape where a photograph and its transpose occupy the same area, and it is
   the minimax choice — under random placement the worst-placed frame is a recurring
-  event, not an edge case. Options: square, 3:2, 4:3, match the page, derived from
-  the collection. `derivedFromCollection` is a choice someone makes and never a
+  event, not an edge case. Options: square, 3:2, 4:3, derived from the
+  collection. `derivedFromCollection` is a choice someone makes and never a
   default: it would reflow a sheet on import with nothing on screen to say why.
 - **5 × 4 is a starting grid, not a constraint.** 8 × 8 at a 1 px gap and 3 × 2 at
   4 px are both ordinary uses. Never bound what can be played with on screen
@@ -89,10 +91,13 @@ narrative or editorial sequencing.**
 
 ## M1 is not done until
 
-1. **The app is sandboxed from the very first build** — `com.apple.security.app-sandbox`
-   and `com.apple.security.files.user-selected.read-only` in the entitlements. With the
-   sandbox off, missing-bookmark bugs are invisible and every path looks correct.
-   Verify with `codesign -d --entitlements - <path>.app`, not by assuming.
+1. **The app is sandboxed from the very first build** — `com.apple.security.app-sandbox`,
+   `com.apple.security.files.user-selected.read-only` and
+   `com.apple.security.files.bookmarks.app-scope` in the entitlements; the last is what
+   permits a security-scoped bookmark to be created at all. With the sandbox off,
+   missing-bookmark bugs are invisible and every path looks correct. Verify with
+   `codesign -d --entitlements - <path>.app`, not by assuming — and check Release
+   separately, where `get-task-allow` must not appear.
 2. **Quit the app, relaunch, and the imported photographs still render.** Nothing short
    of this proves the bookmarks work. An in-process test passes even when they are
    broken, because the URL stays authorised for the life of the process — it measures
@@ -101,6 +106,10 @@ narrative or editorial sequencing.**
    `withAccess { url in … }`, that starts and stops access around every read. If a raw
    URL cannot be obtained, no later code can forget to redeem the bookmark.
 4. **`bookmarkDataIsStale` is handled** by re-creating and re-saving the bookmark.
+
+All four are met. `Scripts/verify-relaunch.sh` is the standing regression for (2) and
+should be run after anything that touches import, the store, or the cache — it deletes
+the thumbnail cache before relaunching, which is the step that makes it mean anything.
 
 ## Interaction — settled
 
