@@ -7,6 +7,8 @@ sandboxed). SwiftUI, Swift 6, macOS 14+.
 https://claude.ai/code/artifact/5917d4a2-04fb-4561-87ce-7844ceb530ba
 Read it before writing code. Section numbers below refer to it.
 
+**M2 plan:** https://claude.ai/code/artifact/64a6432f-5628-4671-a186-caa7fbe960f7
+
 **Status:** M1 complete and verified — sandboxed scaffold, import, collections,
 security-scoped bookmarks, thumbnail cache. Next is M2 (§08), the layout function,
 and it gets planned before it gets coded.
@@ -65,6 +67,13 @@ narrative or editorial sequencing.**
 - **An empty cell is background and nothing else.** No outline, no placeholder, no
   hint that a cell is there — identical on screen and on paper. A grid that is not
   full should look like a grid that is not full.
+- **The gap is the outer margin too.** One number everywhere: between cells and
+  around the block. Cells flush against the window edge look wrong at a 1 px gap, and
+  two numbers would make "padding, exact to the pixel" mean two things.
+- **A derived cell shape re-derives on import.** It resolves live from whatever is in
+  the collection now, so importing enough frames of another ratio does reshape the
+  sheet. Accepted: the alternative is a frozen ratio nobody can see or explain, and a
+  reshape at least corresponds to something the person just did.
 - **The gap is pixels on screen and proportional on paper.** Printing scales the
   sheet uniformly, so a 12 px gap is not a fixed physical measure — it is
   `gap ÷ window width × page width`, and it changes with the window. Report the
@@ -202,10 +211,6 @@ or because it is cheap. Features are added after release only on enough user req
 
 ## Unsettled — ask, don't assume
 
-- **Whether a derived cell shape re-derives on import.** It currently resolves live, so
-  importing enough photographs of a different ratio reshapes the sheet with nothing on
-  screen to say why. The alternative is to freeze the derived ratio the first time a
-  collection is given photographs and only change it when asked. One line either way;
-  decide it once M2 makes the reflow visible.
 - **How the cell-shape override is chosen.** A pull-down near the collection title is
-  the current proposal. Settle it with the rest of the sheet controls in M2.
+  the standing proposal. Deferred to M4 with the rest of the settings UI; M2 honours
+  the stored value without offering a control for it.
