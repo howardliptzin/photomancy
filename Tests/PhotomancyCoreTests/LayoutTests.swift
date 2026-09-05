@@ -198,6 +198,47 @@ final class LayoutTests: XCTestCase {
         XCTAssertEqual(cells[0].midY, 200, accuracy: epsilon)
     }
 
+    // MARK: - Fitting a photograph inside its cell
+
+    func testALandscapeFrameSpansTheWidthOfASquareCell() {
+        let cell = CGRect(x: 10, y: 20, width: 200, height: 200)
+        let frame = fitted(aspectRatio: 1.5, in: cell)
+        XCTAssertEqual(frame.width, 200, accuracy: epsilon)
+        XCTAssertEqual(frame.height, 200 / 1.5, accuracy: epsilon)
+        XCTAssertEqual(frame.midX, cell.midX, accuracy: epsilon)
+        XCTAssertEqual(frame.midY, cell.midY, accuracy: epsilon)
+    }
+
+    func testAPortraitFrameSpansTheHeightOfASquareCell() {
+        let cell = CGRect(x: 0, y: 0, width: 200, height: 200)
+        let frame = fitted(aspectRatio: 2.0 / 3.0, in: cell)
+        XCTAssertEqual(frame.height, 200, accuracy: epsilon)
+        XCTAssertEqual(frame.width, 200 * 2 / 3, accuracy: epsilon)
+    }
+
+    func testAMatchingFrameFillsItsCellExactly() {
+        let cell = CGRect(x: 5, y: 5, width: 300, height: 200)
+        XCTAssertEqual(fitted(aspectRatio: 1.5, in: cell), cell)
+    }
+
+    /// Fit never crops: the frame is always inside the cell, whatever the shapes.
+    func testTheFrameNeverLeavesTheCell() {
+        let cell = CGRect(x: 40, y: 60, width: 180, height: 320)
+        for aspect in [0.2, 0.75, 1, 1.5, 4.0] {
+            let frame = fitted(aspectRatio: aspect, in: cell)
+            XCTAssertGreaterThanOrEqual(frame.minX, cell.minX - epsilon, "aspect \(aspect)")
+            XCTAssertGreaterThanOrEqual(frame.minY, cell.minY - epsilon, "aspect \(aspect)")
+            XCTAssertLessThanOrEqual(frame.maxX, cell.maxX + epsilon, "aspect \(aspect)")
+            XCTAssertLessThanOrEqual(frame.maxY, cell.maxY + epsilon, "aspect \(aspect)")
+        }
+    }
+
+    func testAnUnusableAspectFallsBackToTheWholeCell() {
+        let cell = CGRect(x: 0, y: 0, width: 100, height: 100)
+        XCTAssertEqual(fitted(aspectRatio: 0, in: cell), cell)
+        XCTAssertEqual(fitted(aspectRatio: .nan, in: cell), cell)
+    }
+
     // MARK: - Linearity
 
     /// The property M5 depends on. Printing applies a single uniform scale to

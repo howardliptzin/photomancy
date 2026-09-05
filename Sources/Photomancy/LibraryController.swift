@@ -19,6 +19,9 @@ final class LibraryController {
     var selection: UUID? {
         didSet {
             refreshCellAspect()
+            // Undo does not cross collections: stepping back into a sheet you
+            // are no longer looking at would be a surprise, not a rescue.
+            rebuildArrangement(resettingHistory: true)
             guard isRestored else { return }
             store.setLastOpenedCollection(selection)
         }
@@ -69,6 +72,7 @@ final class LibraryController {
         }
         isRestored = true
         refreshCellAspect()
+        rebuildArrangement(resettingHistory: true)
 
         log.info("launched with \(self.store.document.references.count) references")
         #if DEBUG
@@ -87,9 +91,15 @@ final class LibraryController {
     /// Written straight through to the collection's stored settings, so the
     /// sheet a person leaves is the sheet they come back to.
     private func updateSettings(_ change: (inout SheetSettings) -> Void) {
+        let cellsBefore = cellCount
         var settings = self.settings
         change(&settings)
         store.updateSettings(settings, for: selection)
+        // Changing the gap leaves the sheet alone; changing the grid cannot,
+        // because there is a different number of cells to fill.
+        if cellCount != cellsBefore {
+            rebuildArrangement(resettingHistory: false)
+        }
     }
 
     var columns: Int {
@@ -111,6 +121,114 @@ final class LibraryController {
     /// are to put in them. Neither number constrains the other.
     var cellCount: Int { columns * rows }
 
+    // MARK: - The loop
+
+    private var history = History(Arrangement())
+
+    /// Focused cell for the keyboard route. Every action reachable by pointer is
+    /// reachable from here too.
+    var focusedCell: Int = 0
+
+    /// The `?` overlay. Held here rather than in the view so the menu item and
+    /// the key can be the same single route.
+    var showingShortcuts = false
+
+    /// Roughly 200 ms rather than a cut — the movement is what lets the eye
+    /// register what changed, which is the whole point of animating at all.
+    private func stepping(_ change: () -> Void) {
+        if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+            change()
+        } else {
+            withAnimation(.easeInOut(duration: 0.2), change)
+        }
+    }
+
+    var arrangement: Arrangement { history.current }
+    var canUndo: Bool { history.canUndo }
+    var canRedo: Bool { history.canRedo }
+
+    /// Space, and the toolbar button. The primary verb: it must cost nothing.
+    func randomize() {
+        let rolled = Arrangement.rolled(
+            photographs: photographs,
+            pins: arrangement.pins,
+            cellCount: cellCount
+        )
+        stepping { history.commit(rolled) }
+    }
+
+    /// Click a photograph, or press P on the focused one.
+    func togglePin(at cell: Int) {
+        var next = arrangement
+        next.togglePin(at: cell)
+        guard next != arrangement else { return }
+        history.commit(next)
+        persistPins()
+    }
+
+    /// Releases everything and deals again.
+    func reset() {
+        let rolled = Arrangement.rolled(
+            photographs: photographs,
+            pins: [],
+            cellCount: cellCount
+        )
+        stepping { history.commit(rolled) }
+        persistPins()
+    }
+
+    func undo() {
+        var stepped = false
+        stepping { stepped = history.undo() }
+        if stepped { persistPins() }
+    }
+
+    func redo() {
+        var stepped = false
+        stepping { stepped = history.redo() }
+        if stepped { persistPins() }
+    }
+
+    func moveFocus(byColumns columns: Int, rows: Int) {
+        guard cellCount > 0 else { return }
+        let width = max(1, self.columns)
+        let column = focusedCell % width
+        let row = focusedCell / width
+        let nextColumn = min(max(column + columns, 0), width - 1)
+        let nextRow = min(max(row + rows, 0), max(0, (cellCount - 1) / width))
+        focusedCell = min(nextRow * width + nextColumn, cellCount - 1)
+    }
+
+    /// Deals a fresh sheet honouring whatever is pinned.
+    ///
+    /// `resettingHistory` is for changes that are not a step the person took —
+    /// opening a collection, or an import — where an undo would step into
+    /// something they never did.
+    func rebuildArrangement(resettingHistory: Bool) {
+        let fresh = Arrangement.rolled(
+            photographs: photographs,
+            pins: store.document.pins(in: selection),
+            cellCount: cellCount
+        )
+        if resettingHistory {
+            history.reset(to: fresh)
+        } else {
+            history.commit(fresh)
+        }
+        focusedCell = min(focusedCell, max(0, cellCount - 1))
+
+        #if DEBUG
+        let filled = history.current.slots.compactMap { $0 }.count
+        log.notice("sheet: \(self.cellCount, privacy: .public) cells, \(filled, privacy: .public) filled, \(self.history.current.pinnedCells.count, privacy: .public) pinned, from \(self.photographs.count, privacy: .public) photographs")
+        #endif
+    }
+
+    /// Pins persist; arrangements do not. A photograph whose position mattered
+    /// should have been pinned.
+    private func persistPins() {
+        store.updatePins(arrangement.pins, for: selection)
+    }
+
     /// Cached rather than resolved per frame.
     ///
     /// A derived cell shape clusters every ratio in the collection, and the
@@ -120,8 +238,20 @@ final class LibraryController {
     /// behaviour: a derived shape re-derives on import.
     private(set) var cellAspect: Double = 1
 
+    /// The sheet looks photographs up by hash on every frame, so a linear scan
+    /// of the library would be a scan per cell per frame.
+    private var referenceIndex: [ContentHash: PhotoReference] = [:]
+
+    func reference(for id: ContentHash) -> PhotoReference? {
+        referenceIndex[id]
+    }
+
     func refreshCellAspect() {
         cellAspect = store.document.cellAspect(for: selection)
+        referenceIndex = Dictionary(
+            store.document.references.map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
     }
 
     var currentTitle: String {
@@ -159,6 +289,9 @@ final class LibraryController {
             let added = store.add(result.references, to: destination)
             store.saveNow()
             refreshCellAspect()
+            // Not undoable: stepping back would not un-import the photographs,
+            // so offering it would be a lie.
+            rebuildArrangement(resettingHistory: true)
             importProgress = nil
 
             let duplicates = result.references.count - added

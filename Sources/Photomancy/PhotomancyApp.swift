@@ -26,6 +26,33 @@ struct PhotomancyApp: App {
                 }
                 .keyboardShortcut("n", modifiers: .command)
             }
+
+            // The native baseline for discovering the keyboard: every action is
+            // a menu item carrying its own key equivalent. The menu owns these
+            // outright, so a key is dispatched once no matter what has focus.
+            CommandGroup(replacing: .undoRedo) {
+                Button("Undo Arrangement") { LibraryController.shared.undo() }
+                    .keyboardShortcut("z", modifiers: .command)
+                    .disabled(!LibraryController.shared.canUndo)
+                Button("Redo Arrangement") { LibraryController.shared.redo() }
+                    .keyboardShortcut("z", modifiers: [.command, .shift])
+                    .disabled(!LibraryController.shared.canRedo)
+            }
+
+            CommandMenu("Sheet") {
+                Button("Randomize") { LibraryController.shared.randomize() }
+                    .keyboardShortcut(.space, modifiers: [])
+                Button("Pin or Unpin") {
+                    LibraryController.shared.togglePin(at: LibraryController.shared.focusedCell)
+                }
+                .keyboardShortcut("p", modifiers: [])
+                Divider()
+                Button("Reset") { LibraryController.shared.reset() }
+                    .keyboardShortcut("r", modifiers: .command)
+                Divider()
+                Button("Keyboard Shortcuts") { LibraryController.shared.showingShortcuts.toggle() }
+                    .keyboardShortcut("?", modifiers: [])
+            }
         }
     }
 }

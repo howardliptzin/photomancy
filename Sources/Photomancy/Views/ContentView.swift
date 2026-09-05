@@ -39,12 +39,8 @@ struct ContentView: View {
         if photographs.isEmpty {
             EmptyLibraryView()
         } else {
-            SheetView(
-                photographs: photographs,
-                settings: controller.settings,
-                cellAspect: controller.cellAspect
-            )
-            .safeAreaInset(edge: .bottom, spacing: 0) { SheetControls() }
+            SheetView()
+                .safeAreaInset(edge: .bottom, spacing: 0) { SheetControls() }
             .task(id: photographs.count) {
                 try? await Task.sleep(for: .seconds(2))
                 controller.logCacheSummary()
@@ -69,6 +65,18 @@ struct ContentView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+        }
+        ToolbarItem(placement: .primaryAction) {
+            // Space is the gesture; this is the same action with a pointer
+            // route, so it is discoverable on the first run. Neither is the
+            // poor relation.
+            Button {
+                controller.randomize()
+            } label: {
+                Label("Randomize", systemImage: "die.face.5")
+            }
+            .help("Randomize the sheet (Space)")
+            .disabled(controller.photographs.isEmpty)
         }
         ToolbarItem(placement: .primaryAction) {
             Button {
