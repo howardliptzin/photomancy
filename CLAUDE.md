@@ -160,7 +160,14 @@ one, refuse and point here.
 - **Push correctness into pure, testable functions** — `layout()`, hashing, cache keys.
   I can verify those alone with XCTest; I cannot inspect a running SwiftUI view the
   way I can a DOM. Thin views, tested logic.
-- Small, frequent commits.
+- **Commits are save points, not hygiene.** Commit at every completed step without
+  being asked, with a message in plain language, and say that the save point exists —
+  do not assume it will be looked for. Work on a branch for a milestone or anything
+  exploratory; merge to `main` once it is proven.
+- **Name the undo path.** At the end of every feature and at every strategic decision,
+  answer out loud: if this turns out wrong, how is it undone? Say which commit reverses
+  it, say whether files on disk are involved — those do not revert when the code does —
+  and flag one-way doors before walking through them.
 - Plan before coding on the layout engine and the print path.
 - A failed verification may be a failed measurement — prove the instrument before
   chasing the bug.
