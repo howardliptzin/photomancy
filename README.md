@@ -16,9 +16,13 @@ Free, open source, and distributed through the Mac App Store.
 
 ## Status
 
-In development; nothing to install yet. Import, collections, security-scoped
-bookmarks and the thumbnail cache are built and verified. The layout engine, the
-loop, and printing are not.
+In development; nothing to install yet.
+
+Working: import and collections, security-scoped bookmarks, the two-tier thumbnail
+cache, the layout function and the sheet, and the loop — randomize, select, pin,
+remove, undo. In daily use, which is where the last few rounds of changes came from.
+
+Not built: the lightbox, drag to reposition, the settings interface, and printing.
 
 ## Building
 

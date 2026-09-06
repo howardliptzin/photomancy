@@ -9,9 +9,10 @@ Read it before writing code. Section numbers below refer to it.
 
 **M2 plan:** https://claude.ai/code/artifact/64a6432f-5628-4671-a186-caa7fbe960f7
 
-**Status:** M1–M3 complete. Import, collections, bookmarks and the thumbnail cache;
-`layout()` and the sheet; the loop — randomize, pin, reset, undo. Next is dogfooding:
-the brief recommends using it on real work for a week before building anything else.
+**Status:** M1–M3 complete and in daily use. Import and collections, bookmarks, the
+thumbnail cache, `layout()` and the sheet, and the loop — randomize, select, pin,
+remove, undo. Several settled decisions were reversed by using it; that is the point
+of stopping here. Next is M4 (§08), but not before the week of real use is done.
 
 ## What this is
 
