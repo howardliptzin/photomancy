@@ -31,27 +31,51 @@ struct PhotomancyApp: App {
             // a menu item carrying its own key equivalent. The menu owns these
             // outright, so a key is dispatched once no matter what has focus.
             CommandGroup(replacing: .undoRedo) {
-                Button("Undo Arrangement") { LibraryController.shared.undo() }
+                Button(LibraryController.shared.undoTitle) { LibraryController.shared.undo() }
                     .keyboardShortcut("z", modifiers: .command)
                     .disabled(!LibraryController.shared.canUndo)
-                Button("Redo Arrangement") { LibraryController.shared.redo() }
+                Button(LibraryController.shared.redoTitle) { LibraryController.shared.redo() }
                     .keyboardShortcut("z", modifiers: [.command, .shift])
                     .disabled(!LibraryController.shared.canRedo)
             }
 
-            // Nothing in this app responds to them, so they would sit greyed
-            // out forever. Chrome earns its place or goes.
-            CommandGroup(replacing: .pasteboard) {}
+            // Cut, copy, paste and select all are gone — nothing responds to
+            // them. Delete does, so it belongs here, where anyone would look.
+            // Two items rather than one contextual title or a dialog: both
+            // outcomes are named, both are one keystroke, and neither needs
+            // dismissing. Removing from a collection is the frequent, reversible
+            // one and gets the bare key.
+            CommandGroup(replacing: .pasteboard) {
+                Button("Remove from Collection") {
+                    LibraryController.shared.removeSelectedFromCollection()
+                }
+                .keyboardShortcut(.delete, modifiers: [])
+                .disabled(
+                    LibraryController.shared.selection == nil
+                        || !LibraryController.shared.hasSelection
+                        || LibraryController.shared.isEditingText
+                )
+
+                Button("Delete from Photomancy") {
+                    LibraryController.shared.deleteSelectedFromLibrary()
+                }
+                .keyboardShortcut(.delete, modifiers: .command)
+                .disabled(
+                    !LibraryController.shared.hasSelection
+                        || LibraryController.shared.isEditingText
+                )
+            }
 
             CommandMenu("Sheet") {
                 Button("Randomize") { LibraryController.shared.randomize() }
                     .keyboardShortcut(.space, modifiers: [])
                     .disabled(LibraryController.shared.isEditingText)
-                Button("Pin or Unpin") {
-                    LibraryController.shared.togglePin(at: LibraryController.shared.focusedCell)
-                }
-                .keyboardShortcut("p", modifiers: [])
-                .disabled(LibraryController.shared.isEditingText)
+                Button("Pin or Unpin") { LibraryController.shared.togglePinOnSelection() }
+                    .keyboardShortcut("p", modifiers: [])
+                    .disabled(
+                        !LibraryController.shared.hasSelection
+                            || LibraryController.shared.isEditingText
+                    )
                 Divider()
                 Button("Reset") { LibraryController.shared.reset() }
                     .keyboardShortcut("r", modifiers: .command)

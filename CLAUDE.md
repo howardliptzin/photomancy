@@ -146,7 +146,11 @@ poor relation.
 | Arrow keys | Move focus ring between cells |
 | `P` | Pin/unpin the selected photo |
 | Click | Select a photo |
-| `⌥`Click | Pin/unpin in place |
+| `⌘`Click | Add to / take out of the selection |
+| `⇧`Click | Select from the last one chosen to here |
+| `⌥`Click | Pin/unpin in place — leaves the selection alone |
+| `⌫` | Remove selected from this collection — undoable |
+| `⌘⌫` | Delete selected from Photomancy — not undoable |
 | Double-click | Lightbox |
 | Drag | Move to a cell and pin there |
 | `←` `→` | In lightbox: move through photos |
@@ -163,6 +167,40 @@ poor relation.
   dismissed with `Esc`, because the loop is a full-window activity and nobody is
   looking at the menu bar while they are in it.
 - **Undo spans shuffles.** Non-negotiable — it's what makes gambling on chance safe.
+- **Selection is a set, and Mac conventions decide it in one place.** Plain click
+  replaces, `⌘` adds or removes one, `⇧` takes everything from the anchor to here.
+  Branch on `NSEvent.modifierFlags` inside a single tap handler: a plain
+  `onTapGesture` also fires for a modified click, so separate `.modifiers()`
+  gestures would both run in an order that is not ours to choose.
+- **`P` acts on the whole selection; a mixed selection pins rather than unpins.** The
+  gesture should add the state being asked for, not take it from the frames that
+  already have it.
+- **Removing closes the gap, and pinned frames move up with everything else.** That
+  settles what a pin means: it holds a photograph across *rolls*, not at a fixed cell
+  for ever, so a pin's cell follows its photograph. Empty cells that were already
+  there stay put; only the gap the removal made is closed.
+- **Selection is model state, not focus.** A selected cell stays selected when the
+  keyboard goes elsewhere. Tying the ring to `@FocusState` made it appear only while
+  the mouse was down, which is not a selection — and Delete and the lightbox both act
+  on it, so it has to outlast the click that made it.
+- **Two deletions, named separately, neither hidden behind a dialog.**
+  `Remove from Collection` (`⌫`) takes the photograph out of that list and **is
+  undoable**; `Delete from Photomancy` (`⌘⌫`) takes it out of the library and **is
+  not**, following Lightroom. A confirmation dialog was weighed and rejected: it
+  degrades to a one-button dialog in All Photos, so the app would behave differently
+  depending on where you stand.
+- **At most ten removals stay reversible.** Ordinary steps are cheap — an arrangement
+  is shared hashes — and stay 200 deep. A removal carries what it took away, so the
+  stack is trimmed to the last ten of those, along with everything older, and undo
+  never reaches a step that looks reversible and is not.
+- **A removal's inverse is membership, not the reference.** Remove-from-collection
+  never touches the `PhotoReference`, so undoing it restores ids, their *indices* in
+  the ordered membership, and any pins — about a hundred bytes a photograph. Measured
+  alternative: a whole-document snapshot is 4.5 MB at 5,000 references, which is why
+  it was rejected.
+- **Deleting from the library clears the history.** The step is not undoable by
+  decision, and leaving earlier steps in place would let `⌘Z` walk back into
+  arrangements referring to a photograph that is gone.
 - **Click selects; `⌥`click pins.** This reverses the brief's original inversion, and
   for a better reason than the one it replaced: selection is the prerequisite for
   everything else you can do to one photograph — open it in the lightbox, remove it —
@@ -211,6 +249,9 @@ or because it is cheap. Features are added after release only on enough user req
 - **Push correctness into pure, testable functions** — `layout()`, hashing, cache keys.
   I can verify those alone with XCTest; I cannot inspect a running SwiftUI view the
   way I can a DOM. Thin views, tested logic.
+- **End every exchange with `./Scripts/run.sh`** so there is always one thing to
+  click to see the latest build. It quits any running copy first — `open` on a
+  running app just fronts the old one, and testing a stale build wastes the trip.
 - **Commits are save points, not hygiene.** Commit at every completed step without
   being asked, with a message in plain language, and say that the save point exists —
   do not assume it will be looked for. Work on a branch for a milestone or anything

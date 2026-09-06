@@ -184,6 +184,17 @@ public struct PhotoCollection: Identifiable, Codable, Sendable, Hashable {
         return added
     }
 
+    /// Puts a photograph back where it was. Membership is ordered, so appending
+    /// it would be a different collection from the one that was there.
+    public mutating func insert(_ id: ContentHash, at index: Int) {
+        guard !memberIDs.contains(id) else { return }
+        memberIDs.insert(id, at: min(max(index, 0), memberIDs.count))
+    }
+
+    public mutating func restore(_ restored: [Pin]) {
+        for pin in restored where !pins.contains(pin) { pins.append(pin) }
+    }
+
     public mutating func remove(_ ids: Set<ContentHash>) {
         memberIDs.removeAll { ids.contains($0) }
         pins.removeAll { ids.contains($0.photo) }
