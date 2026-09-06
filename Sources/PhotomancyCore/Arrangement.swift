@@ -51,6 +51,18 @@ public struct Arrangement: Sendable, Equatable {
         }
     }
 
+    /// Takes photographs out of the sheet without re-dealing it.
+    ///
+    /// Their cells become empty rather than being back-filled: a removal should
+    /// leave a gap where the photograph was, not rearrange everything else as a
+    /// side effect of taking one thing away.
+    public mutating func clear(_ ids: Set<ContentHash>) {
+        for cell in slots.indices where slots[cell].map(ids.contains) == true {
+            slots[cell] = nil
+        }
+        pins.removeAll { ids.contains($0.photo) }
+    }
+
     public mutating func unpinAll() {
         pins.removeAll()
     }

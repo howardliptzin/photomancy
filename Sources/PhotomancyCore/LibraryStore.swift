@@ -131,6 +131,18 @@ public final class LibraryStore {
         scheduleSave()
     }
 
+    @discardableResult
+    public func removeFromCollection(_ ids: Set<ContentHash>, collectionID: UUID) -> Restoration? {
+        let restoration = document.removeFromCollection(ids, collectionID: collectionID)
+        if restoration != nil { scheduleSave() }
+        return restoration
+    }
+
+    public func restore(_ restoration: Restoration) {
+        document.restore(restoration)
+        scheduleSave()
+    }
+
     public func remove(_ ids: Set<ContentHash>, from collectionID: UUID?) {
         if collectionID == nil {
             for id in ids { resolver.forget(id) }

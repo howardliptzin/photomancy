@@ -123,7 +123,7 @@ final class LibraryController {
 
     // MARK: - The loop
 
-    private var history = History(Arrangement())
+    private var history = History(Step(arrangement: Arrangement(), label: "Open"))
 
     /// The selected cell, or nothing selected.
     ///
@@ -138,19 +138,7 @@ final class LibraryController {
         return reference(for: id)
     }
 
-    /// Removing from a collection takes the photograph out of that list.
-    /// Removing from All Photos takes it out of the library — the file on disk
-    /// is never touched either way, so re-importing brings it back.
-    var deleteMenuTitle: String {
-        selection == nil ? "Delete from Library" : "Remove from Collection"
-    }
 
-    func deleteSelected() {
-        guard let reference = selectedReference else { return }
-        store.remove([reference.id], from: selection)
-        refreshCellAspect()
-        rebuildArrangement(resettingHistory: true)
-    }
 
     /// The `?` overlay. Held here rather than in the view so the menu item and
     /// the key can be the same single route.
@@ -183,9 +171,26 @@ final class LibraryController {
         }
     }
 
-    var arrangement: Arrangement { history.current }
+    var arrangement: Arrangement { history.current.arrangement }
     var canUndo: Bool { history.canUndo }
     var canRedo: Bool { history.canRedo }
+
+    /// Named steps, so the Edit menu reads "Undo Randomize" rather than "Undo".
+    var undoTitle: String { history.pendingUndo.map { "Undo \($0.label)" } ?? "Undo" }
+    var redoTitle: String { history.pendingRedo.map { "Redo \($0.label)" } ?? "Redo" }
+
+    /// At most ten removals stay reversible. Ordinary steps are cheap and stay
+    /// two hundred deep; a removal carries what it took away, and anything older
+    /// than the tenth is dropped along with everything before it — so undo never
+    /// reaches a step that looks reversible and is not.
+    private static let reversibleRemovals = 10
+
+    private func commit(_ arrangement: Arrangement, label: String, restoration: Restoration? = nil) {
+        history.commit(Step(arrangement: arrangement, label: label, restoration: restoration))
+        if restoration != nil {
+            history.trimPast(toAtMost: Self.reversibleRemovals, matching: \.isRemoval)
+        }
+    }
 
     /// Space, and the toolbar button. The primary verb: it must cost nothing.
     func randomize() {
@@ -194,15 +199,15 @@ final class LibraryController {
             pins: arrangement.pins,
             cellCount: cellCount
         )
-        stepping { history.commit(rolled) }
+        stepping { commit(rolled, label: "Randomize") }
     }
 
-    /// Click a photograph, or press P on the focused one.
+    /// Option-click a photograph, or press P on the selected one.
     func togglePin(at cell: Int) {
         var next = arrangement
         next.togglePin(at: cell)
         guard next != arrangement else { return }
-        history.commit(next)
+        commit(next, label: next.isPinned(cell: cell) ? "Pin" : "Unpin")
         persistPins()
     }
 
@@ -213,20 +218,58 @@ final class LibraryController {
             pins: [],
             cellCount: cellCount
         )
-        stepping { history.commit(rolled) }
+        stepping { commit(rolled, label: "Reset") }
         persistPins()
     }
 
+    /// Takes the photograph out of this collection. Undoable — the reference is
+    /// untouched, so putting it back is a matter of membership and pins.
+    func removeSelectedFromCollection() {
+        guard let collectionID = selection, let reference = selectedReference else { return }
+        guard let restoration = store.removeFromCollection([reference.id], collectionID: collectionID)
+        else { return }
+
+        var next = arrangement
+        next.clear([reference.id])
+        refreshCellAspect()
+        stepping { commit(next, label: "Remove", restoration: restoration) }
+        persistPins()
+    }
+
+    /// Takes the photograph out of the library entirely. Not undoable, by
+    /// decision — so the history is cleared rather than left holding steps that
+    /// refer to a photograph no longer there. The file on disk is untouched;
+    /// re-importing is the way back.
+    func deleteSelectedFromLibrary() {
+        guard let reference = selectedReference else { return }
+        store.remove([reference.id], from: nil)
+        refreshCellAspect()
+        rebuildArrangement(resettingHistory: true)
+    }
+
     func undo() {
-        var stepped = false
-        stepping { stepped = history.undo() }
-        if stepped { persistPins() }
+        var undone: Step?
+        stepping { undone = history.undo() }
+        guard let undone else { return }
+        if let restoration = undone.restoration {
+            store.restore(restoration)
+            refreshCellAspect()
+        }
+        persistPins()
     }
 
     func redo() {
-        var stepped = false
-        stepping { stepped = history.redo() }
-        if stepped { persistPins() }
+        var redone: Step?
+        stepping { redone = history.redo() }
+        guard let redone else { return }
+        if let restoration = redone.restoration {
+            store.removeFromCollection(
+                Set(restoration.memberships.map(\.photo)),
+                collectionID: restoration.collection
+            )
+            refreshCellAspect()
+        }
+        persistPins()
     }
 
     func moveSelection(byColumns columns: Int, rows: Int) {
@@ -255,17 +298,17 @@ final class LibraryController {
             cellCount: cellCount
         )
         if resettingHistory {
-            history.reset(to: fresh)
+            history.reset(to: Step(arrangement: fresh, label: "Open"))
         } else {
-            history.commit(fresh)
+            commit(fresh, label: "Grid")
         }
         if let cell = selectedCell {
             selectedCell = cellCount > 0 ? min(cell, cellCount - 1) : nil
         }
 
         #if DEBUG
-        let filled = history.current.slots.compactMap { $0 }.count
-        log.notice("sheet: \(self.cellCount, privacy: .public) cells, \(filled, privacy: .public) filled, \(self.history.current.pinnedCells.count, privacy: .public) pinned, from \(self.photographs.count, privacy: .public) photographs")
+        let filled = history.current.arrangement.slots.compactMap { $0 }.count
+        log.notice("sheet: \(self.cellCount, privacy: .public) cells, \(filled, privacy: .public) filled, \(self.history.current.arrangement.pinnedCells.count, privacy: .public) pinned, from \(self.photographs.count, privacy: .public) photographs")
         #endif
     }
 

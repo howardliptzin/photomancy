@@ -79,6 +79,37 @@ public struct LibraryDocument: Codable, Sendable, Equatable {
         references[offset] = references[offset].replacingBookmark(with: data)
     }
 
+    /// Takes photographs out of one collection and returns everything needed to
+    /// put them back. The reference itself is untouched — it is still in the
+    /// library and still in every other collection.
+    ///
+    /// Returns `nil` when nothing was actually removed, so a no-op never lands
+    /// in the undo history as a step that appears to do something.
+    public mutating func removeFromCollection(
+        _ ids: Set<ContentHash>,
+        collectionID: UUID
+    ) -> Restoration? {
+        guard let offset = collections.firstIndex(where: { $0.id == collectionID }) else { return nil }
+
+        let memberships = collections[offset].memberIDs.enumerated()
+            .filter { ids.contains($0.element) }
+            .map { Restoration.Membership(photo: $0.element, index: $0.offset) }
+        guard !memberships.isEmpty else { return nil }
+
+        let pins = collections[offset].pins.filter { ids.contains($0.photo) }
+        collections[offset].remove(ids)
+        return Restoration(collection: collectionID, memberships: memberships, pins: pins)
+    }
+
+    public mutating func restore(_ restoration: Restoration) {
+        guard let offset = collections.firstIndex(where: { $0.id == restoration.collection }) else { return }
+        // Ascending, so each index is correct by the time it is used.
+        for membership in restoration.memberships.sorted(by: { $0.index < $1.index }) {
+            collections[offset].insert(membership.photo, at: membership.index)
+        }
+        collections[offset].restore(restoration.pins)
+    }
+
     /// `nil` means All Photos, and All Photos is every reference — so removing
     /// there is removing from the library, while removing from a collection only
     /// takes the photograph out of that list.

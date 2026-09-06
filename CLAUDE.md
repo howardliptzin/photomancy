@@ -147,6 +147,8 @@ poor relation.
 | `P` | Pin/unpin the selected photo |
 | Click | Select a photo |
 | `⌥`Click | Pin/unpin in place |
+| `⌫` | Remove selected from this collection — undoable |
+| `⌘⌫` | Delete selected from Photomancy — not undoable |
 | Double-click | Lightbox |
 | Drag | Move to a cell and pin there |
 | `←` `→` | In lightbox: move through photos |
@@ -167,9 +169,24 @@ poor relation.
   keyboard goes elsewhere. Tying the ring to `@FocusState` made it appear only while
   the mouse was down, which is not a selection — and Delete and the lightbox both act
   on it, so it has to outlast the click that made it.
-- **Delete means the view you are in.** In a collection it removes the photograph from
-  that list; in All Photos it removes it from the library. The file on disk is never
-  touched either way, so re-importing is the undo path.
+- **Two deletions, named separately, neither hidden behind a dialog.**
+  `Remove from Collection` (`⌫`) takes the photograph out of that list and **is
+  undoable**; `Delete from Photomancy` (`⌘⌫`) takes it out of the library and **is
+  not**, following Lightroom. A confirmation dialog was weighed and rejected: it
+  degrades to a one-button dialog in All Photos, so the app would behave differently
+  depending on where you stand.
+- **At most ten removals stay reversible.** Ordinary steps are cheap — an arrangement
+  is shared hashes — and stay 200 deep. A removal carries what it took away, so the
+  stack is trimmed to the last ten of those, along with everything older, and undo
+  never reaches a step that looks reversible and is not.
+- **A removal's inverse is membership, not the reference.** Remove-from-collection
+  never touches the `PhotoReference`, so undoing it restores ids, their *indices* in
+  the ordered membership, and any pins — about a hundred bytes a photograph. Measured
+  alternative: a whole-document snapshot is 4.5 MB at 5,000 references, which is why
+  it was rejected.
+- **Deleting from the library clears the history.** The step is not undoable by
+  decision, and leaving earlier steps in place would let `⌘Z` walk back into
+  arrangements referring to a photograph that is gone.
 - **Click selects; `⌥`click pins.** This reverses the brief's original inversion, and
   for a better reason than the one it replaced: selection is the prerequisite for
   everything else you can do to one photograph — open it in the lightbox, remove it —
