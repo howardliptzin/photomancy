@@ -13,8 +13,10 @@ struct ShortcutLegend: View {
     private let shortcuts: [(key: String, action: String)] = [
         ("Space", "Randomize"),
         ("← → ↑ ↓", "Move between cells"),
-        ("P", "Pin or unpin the focused photograph"),
-        ("Click", "Pin or unpin, in place"),
+        ("P", "Pin or unpin the selected photograph"),
+        ("Click", "Select a photograph"),
+        ("⌥ Click", "Pin or unpin, in place"),
+        ("⇧⌘R", "Rename the collection"),
         ("⌘Z", "Step back through arrangements"),
         ("⇧⌘Z", "Step forward again"),
         ("⌘P", "Print"),

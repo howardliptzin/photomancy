@@ -133,6 +133,23 @@ final class LibraryController {
     /// the key can be the same single route.
     var showingShortcuts = false
 
+    /// Which collection is being renamed inline, if any. Held here so the
+    /// sidebar row and the menu command are the same one route.
+    var renamingCollection: UUID?
+
+    /// True while any text field has the keyboard.
+    ///
+    /// Randomize is Space and pinning is P — no modifiers — so those menu items
+    /// would otherwise swallow every space and every p someone types into a
+    /// name. A menu key equivalent is matched before the field ever sees the
+    /// key, and disabling the item is the only thing that yields it back.
+    var isEditingText = false
+
+    func beginRenamingSelectedCollection() {
+        guard let selection else { return }
+        renamingCollection = selection
+    }
+
     /// Roughly 200 ms rather than a cut — the movement is what lets the eye
     /// register what changed, which is the whole point of animating at all.
     private func stepping(_ change: () -> Void) {

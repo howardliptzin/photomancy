@@ -39,19 +39,31 @@ struct PhotomancyApp: App {
                     .disabled(!LibraryController.shared.canRedo)
             }
 
+            // Nothing in this app responds to them, so they would sit greyed
+            // out forever. Chrome earns its place or goes.
+            CommandGroup(replacing: .pasteboard) {}
+
             CommandMenu("Sheet") {
                 Button("Randomize") { LibraryController.shared.randomize() }
                     .keyboardShortcut(.space, modifiers: [])
+                    .disabled(LibraryController.shared.isEditingText)
                 Button("Pin or Unpin") {
                     LibraryController.shared.togglePin(at: LibraryController.shared.focusedCell)
                 }
                 .keyboardShortcut("p", modifiers: [])
+                .disabled(LibraryController.shared.isEditingText)
                 Divider()
                 Button("Reset") { LibraryController.shared.reset() }
                     .keyboardShortcut("r", modifiers: .command)
+                Button("Rename Collection…") {
+                    LibraryController.shared.beginRenamingSelectedCollection()
+                }
+                .keyboardShortcut("r", modifiers: [.command, .shift])
+                .disabled(LibraryController.shared.selection == nil)
                 Divider()
                 Button("Keyboard Shortcuts") { LibraryController.shared.showingShortcuts.toggle() }
                     .keyboardShortcut("?", modifiers: [])
+                    .disabled(LibraryController.shared.isEditingText)
             }
         }
     }

@@ -5,6 +5,7 @@ struct ContentView: View {
 
     @Environment(LibraryController.self) private var controller
     @State private var isTargetedForDrop = false
+    @FocusState private var titleFieldFocused: Bool
 
     var body: some View {
         @Bindable var controller = controller
@@ -15,7 +16,6 @@ struct ContentView: View {
         } detail: {
             detail
         }
-        .navigationTitle(controller.currentTitle)
         .toolbar { toolbar }
         .dropDestination(for: URL.self) { urls, _ in
             controller.importPhotographs(from: urls)
@@ -50,6 +50,22 @@ struct ContentView: View {
 
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
+        ToolbarItem(placement: .navigation) {
+            // All Photos is virtual and has no name to change.
+            if let id = controller.selection {
+                TextField("Collection", text: collectionName(id))
+                    .textFieldStyle(.plain)
+                    .font(.headline)
+                    .focused($titleFieldFocused)
+                    .onChange(of: titleFieldFocused) { _, focused in
+                        controller.isEditingText = focused
+                    }
+                    .onSubmit { titleFieldFocused = false }
+                    .frame(minWidth: 120, idealWidth: 200)
+            } else {
+                Text("All Photos").font(.headline)
+            }
+        }
         ToolbarItem(placement: .principal) {
             if let progress = controller.importProgress {
                 HStack(spacing: 8) {
@@ -86,6 +102,15 @@ struct ContentView: View {
             }
             .help("Import photographs (⌘I)")
         }
+    }
+}
+
+extension ContentView {
+    fileprivate func collectionName(_ id: UUID) -> Binding<String> {
+        Binding(
+            get: { controller.store.document.collections.first { $0.id == id }?.name ?? "" },
+            set: { controller.store.rename(id, to: $0) }
+        )
     }
 }
 
