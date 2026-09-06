@@ -163,6 +163,13 @@ poor relation.
   dismissed with `Esc`, because the loop is a full-window activity and nobody is
   looking at the menu bar while they are in it.
 - **Undo spans shuffles.** Non-negotiable — it's what makes gambling on chance safe.
+- **Selection is model state, not focus.** A selected cell stays selected when the
+  keyboard goes elsewhere. Tying the ring to `@FocusState` made it appear only while
+  the mouse was down, which is not a selection — and Delete and the lightbox both act
+  on it, so it has to outlast the click that made it.
+- **Delete means the view you are in.** In a collection it removes the photograph from
+  that list; in All Photos it removes it from the library. The file on disk is never
+  touched either way, so re-importing is the undo path.
 - **Click selects; `⌥`click pins.** This reverses the brief's original inversion, and
   for a better reason than the one it replaced: selection is the prerequisite for
   everything else you can do to one photograph — open it in the lightbox, remove it —

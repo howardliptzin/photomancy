@@ -39,16 +39,26 @@ struct PhotomancyApp: App {
                     .disabled(!LibraryController.shared.canRedo)
             }
 
-            // Nothing in this app responds to them, so they would sit greyed
-            // out forever. Chrome earns its place or goes.
-            CommandGroup(replacing: .pasteboard) {}
+            // Cut, copy, paste and select all are gone — nothing responds to
+            // them. Delete does, so it belongs here, where anyone would look.
+            CommandGroup(replacing: .pasteboard) {
+                Button(LibraryController.shared.deleteMenuTitle) {
+                    LibraryController.shared.deleteSelected()
+                }
+                .keyboardShortcut(.delete, modifiers: [])
+                .disabled(
+                    LibraryController.shared.selectedReference == nil
+                        || LibraryController.shared.isEditingText
+                )
+            }
 
             CommandMenu("Sheet") {
                 Button("Randomize") { LibraryController.shared.randomize() }
                     .keyboardShortcut(.space, modifiers: [])
                     .disabled(LibraryController.shared.isEditingText)
                 Button("Pin or Unpin") {
-                    LibraryController.shared.togglePin(at: LibraryController.shared.focusedCell)
+                    guard let cell = LibraryController.shared.selectedCell else { return }
+                    LibraryController.shared.togglePin(at: cell)
                 }
                 .keyboardShortcut("p", modifiers: [])
                 .disabled(LibraryController.shared.isEditingText)

@@ -16,6 +16,7 @@ struct ShortcutLegend: View {
         ("P", "Pin or unpin the selected photograph"),
         ("Click", "Select a photograph"),
         ("⌥ Click", "Pin or unpin, in place"),
+        ("⌫", "Remove the selected photograph"),
         ("⇧⌘R", "Rename the collection"),
         ("⌘Z", "Step back through arrangements"),
         ("⇧⌘Z", "Step forward again"),

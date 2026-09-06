@@ -125,9 +125,32 @@ final class LibraryController {
 
     private var history = History(Arrangement())
 
-    /// Focused cell for the keyboard route. Every action reachable by pointer is
-    /// reachable from here too.
-    var focusedCell: Int = 0
+    /// The selected cell, or nothing selected.
+    ///
+    /// Deliberately not tied to which view holds the keyboard. Selection is what
+    /// Delete and the lightbox act on, so it has to survive clicking elsewhere,
+    /// and a ring that appears only while the mouse is down is not a selection.
+    var selectedCell: Int?
+
+    var selectedReference: PhotoReference? {
+        guard let selectedCell,
+              let id = arrangement.photograph(at: selectedCell) else { return nil }
+        return reference(for: id)
+    }
+
+    /// Removing from a collection takes the photograph out of that list.
+    /// Removing from All Photos takes it out of the library — the file on disk
+    /// is never touched either way, so re-importing brings it back.
+    var deleteMenuTitle: String {
+        selection == nil ? "Delete from Library" : "Remove from Collection"
+    }
+
+    func deleteSelected() {
+        guard let reference = selectedReference else { return }
+        store.remove([reference.id], from: selection)
+        refreshCellAspect()
+        rebuildArrangement(resettingHistory: true)
+    }
 
     /// The `?` overlay. Held here rather than in the view so the menu item and
     /// the key can be the same single route.
@@ -206,14 +229,18 @@ final class LibraryController {
         if stepped { persistPins() }
     }
 
-    func moveFocus(byColumns columns: Int, rows: Int) {
+    func moveSelection(byColumns columns: Int, rows: Int) {
         guard cellCount > 0 else { return }
+        guard let current = selectedCell else {
+            selectedCell = 0
+            return
+        }
         let width = max(1, self.columns)
-        let column = focusedCell % width
-        let row = focusedCell / width
+        let column = current % width
+        let row = current / width
         let nextColumn = min(max(column + columns, 0), width - 1)
         let nextRow = min(max(row + rows, 0), max(0, (cellCount - 1) / width))
-        focusedCell = min(nextRow * width + nextColumn, cellCount - 1)
+        selectedCell = min(nextRow * width + nextColumn, cellCount - 1)
     }
 
     /// Deals a fresh sheet honouring whatever is pinned.
@@ -232,7 +259,9 @@ final class LibraryController {
         } else {
             history.commit(fresh)
         }
-        focusedCell = min(focusedCell, max(0, cellCount - 1))
+        if let cell = selectedCell {
+            selectedCell = cellCount > 0 ? min(cell, cellCount - 1) : nil
+        }
 
         #if DEBUG
         let filled = history.current.slots.compactMap { $0 }.count

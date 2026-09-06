@@ -131,6 +131,14 @@ public final class LibraryStore {
         scheduleSave()
     }
 
+    public func remove(_ ids: Set<ContentHash>, from collectionID: UUID?) {
+        if collectionID == nil {
+            for id in ids { resolver.forget(id) }
+        }
+        document.remove(ids, from: collectionID)
+        scheduleSave()
+    }
+
     public func remove(_ ids: Set<ContentHash>) {
         for id in ids { resolver.forget(id) }
         document.remove(ids)

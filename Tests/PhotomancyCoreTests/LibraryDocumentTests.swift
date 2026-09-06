@@ -101,3 +101,42 @@ final class LibraryDocumentTests: XCTestCase {
         XCTAssertEqual(restored.references.first?.bookmark, document.references.first?.bookmark)
     }
 }
+
+extension LibraryDocumentTests {
+
+    /// Removing inside a collection takes the photograph out of that list only.
+    /// Removing in All Photos takes it out of the library. Same gesture, and the
+    /// difference is which view you are standing in.
+    func testRemovingFromACollectionKeepsThePhotographInTheLibrary() {
+        var document = LibraryDocument()
+        document.insert(reference("a"))
+        document.insert(reference("b"))
+        let collection = document.addCollection(named: "Set")
+        document.add([reference("a").id, reference("b").id], to: collection.id)
+
+        document.remove([reference("a").id], from: collection.id)
+
+        XCTAssertEqual(document.photos(in: collection.id).map(\.displayName), ["b.jpg"])
+        XCTAssertEqual(document.allPhotos.count, 2, "still in the library")
+    }
+
+    func testRemovingFromAllPhotosRemovesItEverywhere() {
+        var document = LibraryDocument()
+        document.insert(reference("a"))
+        document.insert(reference("b"))
+        let collection = document.addCollection(named: "Set")
+        document.add([reference("a").id, reference("b").id], to: collection.id)
+
+        document.remove([reference("a").id], from: nil)
+
+        XCTAssertEqual(document.allPhotos.count, 1)
+        XCTAssertEqual(document.photos(in: collection.id).map(\.displayName), ["b.jpg"])
+    }
+
+    func testRemovingFromAnUnknownCollectionChangesNothing() {
+        var document = LibraryDocument()
+        document.insert(reference("a"))
+        document.remove([reference("a").id], from: UUID())
+        XCTAssertEqual(document.allPhotos.count, 1)
+    }
+}

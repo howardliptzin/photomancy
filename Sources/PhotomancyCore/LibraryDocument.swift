@@ -79,6 +79,18 @@ public struct LibraryDocument: Codable, Sendable, Equatable {
         references[offset] = references[offset].replacingBookmark(with: data)
     }
 
+    /// `nil` means All Photos, and All Photos is every reference — so removing
+    /// there is removing from the library, while removing from a collection only
+    /// takes the photograph out of that list.
+    public mutating func remove(_ ids: Set<ContentHash>, from collectionID: UUID?) {
+        guard let collectionID else {
+            remove(ids)
+            return
+        }
+        guard let offset = collections.firstIndex(where: { $0.id == collectionID }) else { return }
+        collections[offset].remove(ids)
+    }
+
     public mutating func remove(_ ids: Set<ContentHash>) {
         references.removeAll { ids.contains($0.id) }
         allPhotosPins.removeAll { ids.contains($0.photo) }

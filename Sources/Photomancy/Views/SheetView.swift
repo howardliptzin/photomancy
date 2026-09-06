@@ -61,19 +61,22 @@ struct SheetView: View {
                     // has to mean "this one", not "hold this one".
                     .onTapGesture {
                         hasKeyboardFocus = true
-                        controller.focusedCell = item.cell
+                        controller.selectedCell = item.cell
                     }
                     .simultaneousGesture(
                         TapGesture().modifiers(.option).onEnded {
                             hasKeyboardFocus = true
-                            controller.focusedCell = item.cell
+                            controller.selectedCell = item.cell
                             controller.togglePin(at: item.cell)
                         }
                     )
                 }
 
-                if hasKeyboardFocus, cells.indices.contains(controller.focusedCell) {
-                    let cell = cells[controller.focusedCell]
+                // Shown whenever something is selected, not only while this
+                // view holds the keyboard: selection is what Delete and the
+                // lightbox act on, so it has to outlast the click that made it.
+                if let selected = controller.selectedCell, cells.indices.contains(selected) {
+                    let cell = cells[selected]
                     RoundedRectangle(cornerRadius: 2)
                         .strokeBorder(Color(settings.background.contrastingInk).opacity(0.55), lineWidth: 2)
                         .frame(width: cell.width + 6, height: cell.height + 6)
@@ -86,10 +89,10 @@ struct SheetView: View {
         .focused($hasKeyboardFocus)
         .focusEffectDisabled()
         .onAppear { hasKeyboardFocus = true }
-        .onKeyPress(.leftArrow) { controller.moveFocus(byColumns: -1, rows: 0); return .handled }
-        .onKeyPress(.rightArrow) { controller.moveFocus(byColumns: 1, rows: 0); return .handled }
-        .onKeyPress(.upArrow) { controller.moveFocus(byColumns: 0, rows: -1); return .handled }
-        .onKeyPress(.downArrow) { controller.moveFocus(byColumns: 0, rows: 1); return .handled }
+        .onKeyPress(.leftArrow) { controller.moveSelection(byColumns: -1, rows: 0); return .handled }
+        .onKeyPress(.rightArrow) { controller.moveSelection(byColumns: 1, rows: 0); return .handled }
+        .onKeyPress(.upArrow) { controller.moveSelection(byColumns: 0, rows: -1); return .handled }
+        .onKeyPress(.downArrow) { controller.moveSelection(byColumns: 0, rows: 1); return .handled }
         .onKeyPress(.escape) {
             guard controller.showingShortcuts else { return .ignored }
             controller.showingShortcuts = false
