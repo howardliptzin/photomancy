@@ -56,6 +56,14 @@ handful of your own there first — a mix of JPEG, HEIC and PNG is the useful ca
 Pass a different app or folder as arguments if you want:
 `./Scripts/verify-relaunch.sh path/to/Photomancy.app ~/some/photos`
 
+### Running it
+
+Builds the current branch, replaces any running copy, and launches it.
+
+```
+./Scripts/run.sh
+```
+
 ### Measuring
 
 `photomancy-bench` links the same code the app does and measures decoding on a

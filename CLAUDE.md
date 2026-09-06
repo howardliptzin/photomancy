@@ -235,6 +235,9 @@ or because it is cheap. Features are added after release only on enough user req
 - **Push correctness into pure, testable functions** — `layout()`, hashing, cache keys.
   I can verify those alone with XCTest; I cannot inspect a running SwiftUI view the
   way I can a DOM. Thin views, tested logic.
+- **End every exchange with `./Scripts/run.sh`** so there is always one thing to
+  click to see the latest build. It quits any running copy first — `open` on a
+  running app just fronts the old one, and testing a stale build wastes the trip.
 - **Commits are save points, not hygiene.** Commit at every completed step without
   being asked, with a message in plain language, and say that the save point exists —
   do not assume it will be looked for. Work on a branch for a milestone or anything
