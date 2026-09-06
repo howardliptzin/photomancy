@@ -57,9 +57,8 @@ public enum Importer {
     /// `url` must be one the person just chose — from the picker, a drop, or
     /// Open With. Those are the only URLs a sandboxed app may bookmark.
     ///
-    /// Assumes access is already open. Opening and closing it here as well was
-    /// the bug behind "could not be read" on the picker route: see
-    /// ``makeReferences(for:progress:)``.
+    /// Assumes access is already open — ``makeReferences(for:progress:)`` holds
+    /// it for the whole import.
     public static func makeReference(for url: URL) throws -> PhotoReference {
         let dimensions = try ThumbnailDecoder.probe(url: url)
         let hash = try ContentHasher.hash(contentsOf: url)
@@ -68,7 +67,7 @@ public enum Importer {
         let bookmark: Data
         do {
             bookmark = try url.bookmarkData(
-                options: [.withSecurityScope],
+                options: bookmarkCreationOptions,
                 includingResourceValuesForKeys: nil,
                 relativeTo: nil
             )
@@ -91,14 +90,9 @@ public enum Importer {
     /// Access is opened once per chosen URL and held for the whole import —
     /// expansion, hashing and bookmarking — then released at the end.
     ///
-    /// This is not tidiness. A file chosen through the open panel is vended by
-    /// Powerbox, and relinquishing that grant and asking for it again does not
-    /// reliably get it back: reads kept working, and then
-    /// `bookmarkData(.withSecurityScope)` failed with Cocoa error 256, so the
-    /// import got far enough to look fine and then could not save the one token
-    /// that lets the photograph be reopened tomorrow. A dropped URL and one from
-    /// Open With both survive that round trip, which is why only the panel route
-    /// appeared broken.
+    /// Opening and closing the same grant repeatedly is a fragile pattern worth
+    /// avoiding on its own account, though it was not what broke the panel
+    /// route — see `bookmarkCreationOptions` for that.
     public static func makeReferences(
         for urls: [URL],
         progress: (@Sendable (Int, Int) -> Void)? = nil
@@ -108,7 +102,7 @@ public enum Importer {
             held.append(url)
         }
         defer { for url in held { url.stopAccessingSecurityScopedResource() } }
-        log.info("import: \(held.count, privacy: .public) of \(urls.count, privacy: .public) chosen URLs opened security-scoped access")
+        log.notice("import: \(held.count, privacy: .public) of \(urls.count, privacy: .public) chosen URLs opened security-scoped access")
 
         let files = expand(urls)
         var result = Result()

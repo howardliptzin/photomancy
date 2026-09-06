@@ -1,5 +1,24 @@
 import Foundation
 
+/// How every security-scoped bookmark in this app is made.
+///
+/// `.securityScopeAllowOnlyReadAccess` is not optional here. Without it the
+/// system tries to create a read-*write* scoped bookmark, which needs write
+/// permission the app does not have and never asks for — its entitlement is
+/// `files.user-selected.read-only`. The kernel then denies `file-write-data` and
+/// the call fails with Cocoa error 256, having read the file happily a moment
+/// earlier.
+///
+/// Only one route exposed this. A file opened through Open With or dropped from
+/// the Finder arrives with a read-write extension, so a read-write bookmark
+/// succeeds; the open panel's Powerbox grant matches the entitlement and is
+/// read-only, so it does not. Bookmarking is the only operation that ever
+/// noticed the difference.
+let bookmarkCreationOptions: URL.BookmarkCreationOptions = [
+    .withSecurityScope,
+    .securityScopeAllowOnlyReadAccess,
+]
+
 public enum PhotoAccessError: Error, LocalizedError, Sendable {
 
     /// The bookmark resolved, but there is nothing at the other end any more.

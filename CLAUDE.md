@@ -99,6 +99,13 @@ narrative or editorial sequencing.**
 - **Print draws from full-resolution images**, never screen thumbnails.
 - **Security-scoped bookmarks** stored at import and resolved before every read.
   Without this, collections are empty on second launch. Build it right on day one.
+- **Bookmarks are created with `.securityScopeAllowOnlyReadAccess`**, never
+  `.withSecurityScope` alone. Without it the system asks for a read-*write* scoped
+  bookmark, the kernel denies `file-write-data` against an app entitled only to read,
+  and the call fails with Cocoa error 256 — *after* reading the file happily. Only the
+  open panel exposed it: Open With and drag-and-drop hand over a read-write extension,
+  the panel's Powerbox grant matches the entitlement and is read-only. When one import
+  route fails and the others work, suspect the grant's mode, not the route.
 - **Content hash** identifies a photo (survives renames) and keys the thumbnail cache.
 - **Decode at display size** via ImageIO, off the main thread. Two-tier cache:
   in-memory `NSCache` + on-disk in Application Support.
