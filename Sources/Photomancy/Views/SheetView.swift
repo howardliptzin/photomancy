@@ -52,11 +52,24 @@ struct SheetView: View {
                     )
                     .frame(width: cells[item.cell].width, height: cells[item.cell].height)
                     .position(x: cells[item.cell].midX, y: cells[item.cell].midY)
+                    // Click selects. Pinning is Option-click or P.
+                    //
+                    // This reverses the brief's original inversion, and for a
+                    // better reason than the one it replaces: selection is the
+                    // prerequisite for everything else you can do to one
+                    // photograph — open it, remove it — so the plainest gesture
+                    // has to mean "this one", not "hold this one".
                     .onTapGesture {
                         hasKeyboardFocus = true
                         controller.focusedCell = item.cell
-                        controller.togglePin(at: item.cell)
                     }
+                    .simultaneousGesture(
+                        TapGesture().modifiers(.option).onEnded {
+                            hasKeyboardFocus = true
+                            controller.focusedCell = item.cell
+                            controller.togglePin(at: item.cell)
+                        }
+                    )
                 }
 
                 if hasKeyboardFocus, cells.indices.contains(controller.focusedCell) {

@@ -99,6 +99,13 @@ narrative or editorial sequencing.**
 - **Print draws from full-resolution images**, never screen thumbnails.
 - **Security-scoped bookmarks** stored at import and resolved before every read.
   Without this, collections are empty on second launch. Build it right on day one.
+- **Bookmarks are created with `.securityScopeAllowOnlyReadAccess`**, never
+  `.withSecurityScope` alone. Without it the system asks for a read-*write* scoped
+  bookmark, the kernel denies `file-write-data` against an app entitled only to read,
+  and the call fails with Cocoa error 256 — *after* reading the file happily. Only the
+  open panel exposed it: Open With and drag-and-drop hand over a read-write extension,
+  the panel's Powerbox grant matches the entitlement and is read-only. When one import
+  route fails and the others work, suspect the grant's mode, not the route.
 - **Content hash** identifies a photo (survives renames) and keys the thumbnail cache.
 - **Decode at display size** via ImageIO, off the main thread. Two-tier cache:
   in-memory `NSCache` + on-disk in Application Support.
@@ -137,8 +144,9 @@ poor relation.
 |---|---|
 | `Space` | Randomize — **also a toolbar button** |
 | Arrow keys | Move focus ring between cells |
-| `P` | Pin/unpin the focused photo |
-| Click | Pin/unpin in place |
+| `P` | Pin/unpin the selected photo |
+| Click | Select a photo |
+| `⌥`Click | Pin/unpin in place |
 | Double-click | Lightbox |
 | Drag | Move to a cell and pin there |
 | `←` `→` | In lightbox: move through photos |
@@ -155,7 +163,16 @@ poor relation.
   dismissed with `Esc`, because the loop is a full-window activity and nobody is
   looking at the menu bar while they are in it.
 - **Undo spans shuffles.** Non-negotiable — it's what makes gambling on chance safe.
-- Click pins, double-click zooms. This is deliberately **inverted** from the web app.
+- **Click selects; `⌥`click pins.** This reverses the brief's original inversion, and
+  for a better reason than the one it replaced: selection is the prerequisite for
+  everything else you can do to one photograph — open it in the lightbox, remove it —
+  so the plainest gesture has to mean "this one", not "hold this one".
+- **The pin mark is anchored to the cell, not to the photograph.** Following the frame
+  is more literally correct, but every ratio put the dot somewhere else and the marks
+  danced around the sheet. With a derived cell shape the two coincide for most frames.
+- **Menu items carrying bare-key equivalents are disabled while a text field has the
+  keyboard.** `Space` and `P` are matched before a field ever sees them, so without
+  this nobody can type a space into a collection name.
 - Randomize animates cells to new positions (~200ms), respecting
   `prefers-reduced-motion`. The movement is how the eye registers what changed.
 
@@ -172,7 +189,8 @@ and logic-free so it can be torn up without touching layout, caching or state.
 
 ## Do not build (v1)
 
-Watched folders · publishing to a server · constraint rules for the shuffle · editing
+Cut, copy, paste and select all — nothing responds to them, so they are removed from
+the menu rather than left greyed out forever · watched folders · publishing to a server · constraint rules for the shuffle · editing
 or cropping · **Fill / any crop-to-cell mode** · multi-page contact sheets ·
 captions/metadata overlays · iCloud sync · soft proofing or CMYK · restoring a full
 arrangement across launches.

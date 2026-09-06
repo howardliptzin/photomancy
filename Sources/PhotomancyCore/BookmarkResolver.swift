@@ -120,7 +120,7 @@ public final class BookmarkResolver: @unchecked Sendable {
 
         do {
             let data = try url.bookmarkData(
-                options: [.withSecurityScope],
+                options: bookmarkCreationOptions,
                 includingResourceValuesForKeys: nil,
                 relativeTo: nil
             )

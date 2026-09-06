@@ -29,12 +29,12 @@ public enum Importer {
 
     /// Folders expand to the images inside them, recursively. Dropping a shoot
     /// folder is the common case and should not require selecting 400 files.
+    ///
+    /// Does not open security-scoped access itself — the caller holds it open
+    /// across the whole import. See ``makeReferences(for:progress:)``.
     public static func expand(_ urls: [URL]) -> [URL] {
         var found: [URL] = []
         for url in urls {
-            let scoped = url.startAccessingSecurityScopedResource()
-            defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-
             let isDirectory = (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
             if isDirectory {
                 let enumerator = FileManager.default.enumerator(
@@ -56,10 +56,10 @@ public enum Importer {
     ///
     /// `url` must be one the person just chose — from the picker, a drop, or
     /// Open With. Those are the only URLs a sandboxed app may bookmark.
+    ///
+    /// Assumes access is already open — ``makeReferences(for:progress:)`` holds
+    /// it for the whole import.
     public static func makeReference(for url: URL) throws -> PhotoReference {
-        let scoped = url.startAccessingSecurityScopedResource()
-        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-
         let dimensions = try ThumbnailDecoder.probe(url: url)
         let hash = try ContentHasher.hash(contentsOf: url)
         let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
@@ -67,7 +67,7 @@ public enum Importer {
         let bookmark: Data
         do {
             bookmark = try url.bookmarkData(
-                options: [.withSecurityScope],
+                options: bookmarkCreationOptions,
                 includingResourceValuesForKeys: nil,
                 relativeTo: nil
             )
@@ -87,11 +87,23 @@ public enum Importer {
 
     /// Import in bulk, off the main thread, one failure at a time.
     ///
-    /// `progress` is called with (completed, total) and may arrive on any thread.
+    /// Access is opened once per chosen URL and held for the whole import —
+    /// expansion, hashing and bookmarking — then released at the end.
+    ///
+    /// Opening and closing the same grant repeatedly is a fragile pattern worth
+    /// avoiding on its own account, though it was not what broke the panel
+    /// route — see `bookmarkCreationOptions` for that.
     public static func makeReferences(
         for urls: [URL],
         progress: (@Sendable (Int, Int) -> Void)? = nil
     ) async -> Result {
+        var held: [URL] = []
+        for url in urls where url.startAccessingSecurityScopedResource() {
+            held.append(url)
+        }
+        defer { for url in held { url.stopAccessingSecurityScopedResource() } }
+        log.notice("import: \(held.count, privacy: .public) of \(urls.count, privacy: .public) chosen URLs opened security-scoped access")
+
         let files = expand(urls)
         var result = Result()
         result.scanned = files.count
@@ -138,7 +150,12 @@ public enum Importer {
             case .success(let reference):
                 result.references.append(reference)
             case .failure(let error):
-                log.error("import failed for \(name, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                let underlying = (error as? PhotoAccessError).flatMap { access -> String? in
+                    guard case .unresolvable(_, let cause) = access, let cause else { return nil }
+                    let nsError = cause as NSError
+                    return " [\(nsError.domain) \(nsError.code): \(nsError.localizedDescription)]"
+                } ?? ""
+                log.error("import failed for \(name, privacy: .public): \(error.localizedDescription, privacy: .public)\(underlying, privacy: .public)")
                 result.failures.append((name: name, error: error))
             }
         }

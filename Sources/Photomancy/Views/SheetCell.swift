@@ -26,13 +26,6 @@ struct SheetCell: View {
         ThumbnailSize.bucket(forCell: size, scale: displayScale)
     }
 
-    /// Where the photograph actually sits inside the cell. The pin mark belongs
-    /// on the frame's corner, not the cell's, or it floats in background
-    /// whenever the two shapes differ.
-    private var frame: CGRect {
-        fitted(aspectRatio: reference.aspectRatio, in: CGRect(origin: .zero, size: size))
-    }
-
     var body: some View {
         ZStack(alignment: .topLeading) {
             if let thumbnail {
@@ -50,8 +43,7 @@ struct SheetCell: View {
             }
 
             if isPinned {
-                pinMark
-                    .position(x: frame.minX + 11, y: frame.minY + 11)
+                pinMark.padding(6)
             }
         }
         .frame(width: size.width, height: size.height)
@@ -60,8 +52,15 @@ struct SheetCell: View {
         .task(id: "\(reference.id.hex)@\(requestedPixels)") { await load() }
     }
 
-    /// A white dot with a thin black outline, on the upper left of the frame.
-    /// One mark, one place, no variants — legible on any photograph.
+    /// A white dot with a thin black outline, at the upper left of the *cell*.
+    ///
+    /// Anchored to the cell rather than to the photograph inside it. Following
+    /// the photograph is more literally correct — the mark then always sits on
+    /// the image — but every frame with a different ratio put the dot somewhere
+    /// else, so the marks danced around the sheet instead of reading as one
+    /// consistent sign. With a derived cell shape most frames fill their cell
+    /// exactly and the two positions coincide; only the odd ratio out now shows
+    /// its dot against background, which is the cheaper price.
     private var pinMark: some View {
         Circle()
             .fill(.white)

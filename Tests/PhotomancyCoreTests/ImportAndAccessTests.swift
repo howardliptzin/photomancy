@@ -105,3 +105,16 @@ final class ImportAndAccessTests: XCTestCase {
         XCTAssertEqual(result.failures.count, 1)
     }
 }
+
+extension ImportAndAccessTests {
+
+    /// Guards the one flag that made the open panel fail while every other
+    /// import route worked. Without it the system asks for a read-write scoped
+    /// bookmark, the kernel denies `file-write-data` against an app entitled
+    /// only to read, and the call fails after the file has already been read
+    /// successfully — which is about as misleading as a failure gets.
+    func testBookmarksAreCreatedReadOnly() {
+        XCTAssertTrue(bookmarkCreationOptions.contains(.withSecurityScope))
+        XCTAssertTrue(bookmarkCreationOptions.contains(.securityScopeAllowOnlyReadAccess))
+    }
+}
