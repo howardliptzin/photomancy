@@ -108,26 +108,60 @@ final class RestorationTests: XCTestCase {
 
     // MARK: - The sheet
 
-    func testRemovingClearsTheCellWithoutRedealingTheRest() {
+    /// The gap closes: everything after the removal shuffles up one place,
+    /// rather than the sheet re-dealing or a hole being left behind.
+    func testRemovingClosesTheGap() {
         let photographs = ["a", "b", "c", "d"].map(reference)
         var arrangement = Arrangement(slots: photographs.map { $0.id }, pins: [])
-        arrangement.togglePin(at: 0)
 
-        arrangement.clear([photographs[2].id])
+        arrangement.removeClosingGaps([photographs[1].id])
 
-        XCTAssertNil(arrangement.photograph(at: 2), "a gap where it was")
-        XCTAssertEqual(arrangement.photograph(at: 0), photographs[0].id, "nothing else moved")
-        XCTAssertEqual(arrangement.photograph(at: 3), photographs[3].id)
-        XCTAssertTrue(arrangement.isPinned(cell: 0), "other pins survive")
+        XCTAssertEqual(arrangement.slots, [photographs[0].id, photographs[2].id, photographs[3].id, nil])
     }
 
-    func testClearingAlsoDropsThePinOnWhatWasRemoved() {
+    /// A pin holds a photograph across rolls, not at a fixed cell for ever — so
+    /// when the sheet closes up, the pin travels with its photograph instead of
+    /// being stranded on the cell it used to occupy.
+    func testAPinTravelsWithItsPhotographWhenTheSheetClosesUp() {
+        let photographs = ["a", "b", "c"].map(reference)
+        var arrangement = Arrangement(slots: photographs.map { $0.id }, pins: [])
+        arrangement.togglePin(at: 2)
+        XCTAssertEqual(arrangement.pins.first?.cell, 2)
+
+        arrangement.removeClosingGaps([photographs[0].id])
+
+        XCTAssertEqual(arrangement.photograph(at: 1), photographs[2].id)
+        XCTAssertEqual(arrangement.pins.first?.cell, 1, "the pin moved with it")
+        XCTAssertTrue(arrangement.isPinned(cell: 1))
+    }
+
+    func testRemovingDropsThePinOnWhatWasRemoved() {
         let photographs = ["a", "b"].map(reference)
         var arrangement = Arrangement(slots: photographs.map { $0.id }, pins: [])
         arrangement.togglePin(at: 1)
-        XCTAssertEqual(arrangement.pins.count, 1)
 
-        arrangement.clear([photographs[1].id])
+        arrangement.removeClosingGaps([photographs[1].id])
         XCTAssertTrue(arrangement.pins.isEmpty)
+    }
+
+    func testRemovingSeveralAtOnceClosesEveryGap() {
+        let photographs = ["a", "b", "c", "d", "e"].map(reference)
+        var arrangement = Arrangement(slots: photographs.map { $0.id }, pins: [])
+
+        arrangement.removeClosingGaps([photographs[0].id, photographs[3].id])
+
+        XCTAssertEqual(arrangement.slots, [photographs[1].id, photographs[2].id, photographs[4].id, nil, nil])
+    }
+
+    /// A pin held over from a larger grid refers to no cell on this sheet, and
+    /// must not be rewritten by a removal it has nothing to do with.
+    func testAPinForAPhotographNotOnTheSheetIsLeftAlone() {
+        let photographs = ["a", "b"].map(reference)
+        let elsewhere = Pin(photo: reference("z").id, cell: 40)
+        var arrangement = Arrangement(slots: photographs.map { $0.id }, pins: [elsewhere])
+
+        arrangement.removeClosingGaps([photographs[0].id])
+
+        XCTAssertEqual(arrangement.pins, [elsewhere])
     }
 }

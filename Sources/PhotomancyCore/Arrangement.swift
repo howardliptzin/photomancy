@@ -40,27 +40,44 @@ public struct Arrangement: Sendable, Equatable {
     /// Holds whatever is in that cell, or lets it go. An empty cell cannot be
     /// pinned — there is nothing to hold.
     public mutating func togglePin(at cell: Int) {
-        guard let photograph = photograph(at: cell) else { return }
-        if isPinned(cell: cell) {
-            pins.removeAll { $0.cell == cell && $0.photo == photograph }
-        } else {
-            // One photograph is held in one place; pinning it somewhere new
-            // releases wherever it was.
-            pins.removeAll { $0.photo == photograph || $0.cell == cell }
-            pins.append(Pin(photo: photograph, cell: cell))
+        setPinned(!isPinned(cell: cell), at: cell)
+    }
+
+    /// Takes photographs out of the sheet and closes the gap, everything after
+    /// shuffling up one place.
+    ///
+    /// Pinned frames move up too. That settles what a pin means: it holds a
+    /// photograph across *rolls*, not at a fixed cell for ever — so a pin's cell
+    /// follows its photograph rather than the photograph being stranded from its
+    /// pin. Empty cells that were already there stay where they are; only the
+    /// gap the removal made is closed.
+    public mutating func removeClosingGaps(_ ids: Set<ContentHash>) {
+        let capacity = slots.count
+        var kept = slots.filter { slot in slot.map { !ids.contains($0) } ?? true }
+        kept.append(contentsOf: repeatElement(nil, count: max(0, capacity - kept.count)))
+        slots = Array(kept.prefix(capacity))
+
+        var cellOf: [ContentHash: Int] = [:]
+        for (cell, slot) in slots.enumerated() { if let slot { cellOf[slot] = cell } }
+
+        pins = pins.compactMap { pin in
+            if ids.contains(pin.photo) { return nil }
+            // A pin for a photograph that is not on this sheet — held over from a
+            // larger grid — is left exactly as it is.
+            guard let cell = cellOf[pin.photo] else { return pin }
+            return Pin(photo: pin.photo, cell: cell)
         }
     }
 
-    /// Takes photographs out of the sheet without re-dealing it.
-    ///
-    /// Their cells become empty rather than being back-filled: a removal should
-    /// leave a gap where the photograph was, not rearrange everything else as a
-    /// side effect of taking one thing away.
-    public mutating func clear(_ ids: Set<ContentHash>) {
-        for cell in slots.indices where slots[cell].map(ids.contains) == true {
-            slots[cell] = nil
+    public mutating func setPinned(_ pinned: Bool, at cell: Int) {
+        guard let photograph = photograph(at: cell) else { return }
+        if pinned {
+            guard !isPinned(cell: cell) else { return }
+            pins.removeAll { $0.photo == photograph || $0.cell == cell }
+            pins.append(Pin(photo: photograph, cell: cell))
+        } else {
+            pins.removeAll { $0.cell == cell && $0.photo == photograph }
         }
-        pins.removeAll { ids.contains($0.photo) }
     }
 
     public mutating func unpinAll() {

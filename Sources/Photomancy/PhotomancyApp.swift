@@ -52,7 +52,7 @@ struct PhotomancyApp: App {
                 .keyboardShortcut(.delete, modifiers: [])
                 .disabled(
                     LibraryController.shared.selection == nil
-                        || LibraryController.shared.selectedReference == nil
+                        || !LibraryController.shared.hasSelection
                         || LibraryController.shared.isEditingText
                 )
 
@@ -61,7 +61,7 @@ struct PhotomancyApp: App {
                 }
                 .keyboardShortcut(.delete, modifiers: .command)
                 .disabled(
-                    LibraryController.shared.selectedReference == nil
+                    !LibraryController.shared.hasSelection
                         || LibraryController.shared.isEditingText
                 )
             }
@@ -70,12 +70,12 @@ struct PhotomancyApp: App {
                 Button("Randomize") { LibraryController.shared.randomize() }
                     .keyboardShortcut(.space, modifiers: [])
                     .disabled(LibraryController.shared.isEditingText)
-                Button("Pin or Unpin") {
-                    guard let cell = LibraryController.shared.selectedCell else { return }
-                    LibraryController.shared.togglePin(at: cell)
-                }
-                .keyboardShortcut("p", modifiers: [])
-                .disabled(LibraryController.shared.isEditingText)
+                Button("Pin or Unpin") { LibraryController.shared.togglePinOnSelection() }
+                    .keyboardShortcut("p", modifiers: [])
+                    .disabled(
+                        !LibraryController.shared.hasSelection
+                            || LibraryController.shared.isEditingText
+                    )
                 Divider()
                 Button("Reset") { LibraryController.shared.reset() }
                     .keyboardShortcut("r", modifiers: .command)

@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 import PhotomancyCore
 
 extension Color {
@@ -52,30 +53,23 @@ struct SheetView: View {
                     )
                     .frame(width: cells[item.cell].width, height: cells[item.cell].height)
                     .position(x: cells[item.cell].midX, y: cells[item.cell].midY)
-                    // Click selects. Pinning is Option-click or P.
+                    // One handler, reading the modifiers itself.
                     //
-                    // This reverses the brief's original inversion, and for a
-                    // better reason than the one it replaces: selection is the
-                    // prerequisite for everything else you can do to one
-                    // photograph — open it, remove it — so the plainest gesture
-                    // has to mean "this one", not "hold this one".
+                    // Attaching a separate `.modifiers(.command)` gesture does
+                    // not work here: a plain `onTapGesture` fires for a modified
+                    // click as well, so both would run and the order between
+                    // them is not ours to decide. Branching on the flags keeps
+                    // the whole convention in one readable place.
                     .onTapGesture {
                         hasKeyboardFocus = true
-                        controller.selectedCell = item.cell
+                        controller.click(cell: item.cell, modifiers: NSEvent.modifierFlags)
                     }
-                    .simultaneousGesture(
-                        TapGesture().modifiers(.option).onEnded {
-                            hasKeyboardFocus = true
-                            controller.selectedCell = item.cell
-                            controller.togglePin(at: item.cell)
-                        }
-                    )
                 }
 
                 // Shown whenever something is selected, not only while this
-                // view holds the keyboard: selection is what Delete and the
-                // lightbox act on, so it has to outlast the click that made it.
-                if let selected = controller.selectedCell, cells.indices.contains(selected) {
+                // view holds the keyboard: selection is what Delete acts on, so
+                // it has to outlast the click that made it.
+                ForEach(controller.selectedCells.sorted().filter(cells.indices.contains), id: \.self) { selected in
                     let cell = cells[selected]
                     RoundedRectangle(cornerRadius: 2)
                         .strokeBorder(Color(settings.background.contrastingInk).opacity(0.55), lineWidth: 2)

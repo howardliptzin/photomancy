@@ -146,7 +146,9 @@ poor relation.
 | Arrow keys | Move focus ring between cells |
 | `P` | Pin/unpin the selected photo |
 | Click | Select a photo |
-| `⌥`Click | Pin/unpin in place |
+| `⌘`Click | Add to / take out of the selection |
+| `⇧`Click | Select from the last one chosen to here |
+| `⌥`Click | Pin/unpin in place — leaves the selection alone |
 | `⌫` | Remove selected from this collection — undoable |
 | `⌘⌫` | Delete selected from Photomancy — not undoable |
 | Double-click | Lightbox |
@@ -165,6 +167,18 @@ poor relation.
   dismissed with `Esc`, because the loop is a full-window activity and nobody is
   looking at the menu bar while they are in it.
 - **Undo spans shuffles.** Non-negotiable — it's what makes gambling on chance safe.
+- **Selection is a set, and Mac conventions decide it in one place.** Plain click
+  replaces, `⌘` adds or removes one, `⇧` takes everything from the anchor to here.
+  Branch on `NSEvent.modifierFlags` inside a single tap handler: a plain
+  `onTapGesture` also fires for a modified click, so separate `.modifiers()`
+  gestures would both run in an order that is not ours to choose.
+- **`P` acts on the whole selection; a mixed selection pins rather than unpins.** The
+  gesture should add the state being asked for, not take it from the frames that
+  already have it.
+- **Removing closes the gap, and pinned frames move up with everything else.** That
+  settles what a pin means: it holds a photograph across *rolls*, not at a fixed cell
+  for ever, so a pin's cell follows its photograph. Empty cells that were already
+  there stay put; only the gap the removal made is closed.
 - **Selection is model state, not focus.** A selected cell stays selected when the
   keyboard goes elsewhere. Tying the ring to `@FocusState` made it appear only while
   the mouse was down, which is not a selection — and Delete and the lightbox both act
