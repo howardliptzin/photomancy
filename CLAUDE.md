@@ -9,10 +9,13 @@ Read it before writing code. Section numbers below refer to it.
 
 **M2 plan:** https://claude.ai/code/artifact/64a6432f-5628-4671-a186-caa7fbe960f7
 
+**M4 plan:** https://claude.ai/code/artifact/7031cc7e-46c0-4982-a1e3-8f8613890646
+
 **Status:** M1–M3 complete and in daily use. Import and collections, bookmarks, the
 thumbnail cache, `layout()` and the sheet, and the loop — randomize, select, pin,
 remove, undo. Several settled decisions were reversed by using it; that is the point
-of stopping here. Next is M4 (§08), but not before the week of real use is done.
+of stopping here. The week of use is done and M4 is under way: drag-to-position is
+built on `m4-drag`.
 
 ## What this is
 
@@ -176,6 +179,13 @@ poor relation.
 - **`P` acts on the whole selection; a mixed selection pins rather than unpins.** The
   gesture should add the state being asked for, not take it from the frames that
   already have it.
+- **Dragging a photograph onto a cell moves it there and pins it; the cells between
+  shift one place.** A removal and an insertion composed — out of its cell, gap closed,
+  back in at the target — so it follows the removal rule: pins travel with their
+  photographs, nothing leaves the sheet, no cell empties that was not empty. Dragged
+  back the run shifts right, dragged forward it shifts left. Onto an empty cell there
+  is nothing to make room for, so it is simply placed. Dropped in the dead space or on
+  its own cell, nothing is recorded. An ordinary step, so `⌘Z` undoes it.
 - **Removing closes the gap, and pinned frames move up with everything else.** That
   settles what a pin means: it holds a photograph across *rolls*, not at a fixed cell
   for ever, so a pin's cell follows its photograph. Empty cells that were already
