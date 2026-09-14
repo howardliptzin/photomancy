@@ -18,6 +18,7 @@ struct ShortcutLegend: View {
         ("⌘ Click", "Add one to the selection, or take it out"),
         ("⇧ Click", "Select everything from the last one to here"),
         ("⌥ Click", "Pin or unpin, in place"),
+        ("Drag", "Move to a cell and pin it there"),
         ("⌫", "Remove the selected photograph from this collection"),
         ("⌘⌫", "Delete it from Photomancy"),
         ("⇧⌘R", "Rename the collection"),

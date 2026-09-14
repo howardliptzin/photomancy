@@ -49,6 +49,17 @@ public func fitted(aspectRatio: Double, in cell: CGRect) -> CGRect {
     )
 }
 
+/// Which cell a point on the sheet belongs to, for dropping a dragged photograph.
+///
+/// Each cell reaches half a gap beyond its edges, so the gap between two cells is
+/// split between them and there is no hairline to miss at a 1 px gap. Past that
+/// — the dead space beyond the block — belongs to no cell, and a drop there is a
+/// cancelled drag.
+public func cell(at point: CGPoint, in cells: [CGRect], gap: Double) -> Int? {
+    let reach = (gap.isFinite && gap > 0) ? gap / 2 : 0
+    return cells.firstIndex { $0.insetBy(dx: -reach, dy: -reach).contains(point) }
+}
+
 public func layout(
     cols: Int,
     rows: Int,

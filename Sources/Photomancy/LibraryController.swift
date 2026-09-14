@@ -216,7 +216,7 @@ final class LibraryController {
 
     /// Roughly 200 ms rather than a cut — the movement is what lets the eye
     /// register what changed, which is the whole point of animating at all.
-    private func stepping(_ change: () -> Void) {
+    func stepping(_ change: () -> Void) {
         if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
             change()
         } else {
@@ -261,6 +261,20 @@ final class LibraryController {
         next.togglePin(at: cell)
         guard next != arrangement else { return }
         commit(next, label: next.isPinned(cell: cell) ? "Pin" : "Unpin")
+        persistPins()
+    }
+
+    /// Drag a photograph onto a cell: it moves there and is pinned, and the cells
+    /// between shift one place to make room. An ordinary step, so ⌘Z puts the
+    /// sheet back as it was.
+    func move(from source: Int, to target: Int) {
+        var next = arrangement
+        next.move(from: source, to: target)
+        guard next != arrangement else { return }
+        stepping { commit(next, label: "Move") }
+        // The selection is by cell, and the cells have just shifted under it.
+        // What you dragged is what you were working with.
+        select(target)
         persistPins()
     }
 

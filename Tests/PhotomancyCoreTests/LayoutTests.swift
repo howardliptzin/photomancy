@@ -272,4 +272,33 @@ final class LayoutTests: XCTestCase {
             XCTAssertEqual(b.width, a.width * scale, accuracy: 1e-7)
         }
     }
+
+    // MARK: - Hit testing a drop
+
+    func testEveryCellCentreHitsItsOwnCell() {
+        let cells = layout(cols: 5, rows: 4, gap: 12, cellAspect: 1.5, canvas: CGSize(width: 1400, height: 900))
+        for (index, rect) in cells.enumerated() {
+            XCTAssertEqual(cell(at: CGPoint(x: rect.midX, y: rect.midY), in: cells, gap: 12), index)
+        }
+    }
+
+    /// The gap is split between its two neighbours, so a drop in it is never lost.
+    func testAPointInTheGapBelongsToTheNearerCell() {
+        let cells = layout(cols: 5, rows: 4, gap: 12, cellAspect: 1, canvas: CGSize(width: 1200, height: 800))
+        let y = cells[0].midY
+        XCTAssertEqual(cell(at: CGPoint(x: cells[0].maxX + 2, y: y), in: cells, gap: 12), 0)
+        XCTAssertEqual(cell(at: CGPoint(x: cells[1].minX - 2, y: y), in: cells, gap: 12), 1)
+    }
+
+    func testAHairlineGapHasNoDeadLine() {
+        let cells = layout(cols: 8, rows: 8, gap: 0, cellAspect: 1, canvas: CGSize(width: 800, height: 800))
+        XCTAssertNotNil(cell(at: CGPoint(x: cells[0].maxX, y: cells[0].midY), in: cells, gap: 0))
+    }
+
+    /// Dropping in the dead space beyond the block cancels the drag.
+    func testTheDeadSpaceBeyondTheBlockBelongsToNoCell() {
+        let cells = layout(cols: 5, rows: 4, gap: 12, cellAspect: 1, canvas: CGSize(width: 1200, height: 800))
+        XCTAssertNil(cell(at: CGPoint(x: 20, y: 400), in: cells, gap: 12))
+        XCTAssertNil(cell(at: CGPoint(x: 1180, y: 400), in: cells, gap: 12))
+    }
 }
