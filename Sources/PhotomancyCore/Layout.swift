@@ -89,6 +89,29 @@ public func lightboxFrame(pixelWidth: Int, pixelHeight: Int, in area: CGRect, sc
     )
 }
 
+/// The largest whole-pixel gap that still leaves every cell at least
+/// `minimumCell` points on both edges, for this grid in this canvas.
+///
+/// Not a policy bound — nothing caps what can be played with. It is the point
+/// past which `layout()` has no room for cells and returns nothing, so the sheet
+/// would go blank. Zero for a canvas that has no size yet.
+public func maximumGap(cols: Int, rows: Int, canvas: CGSize, minimumCell: Double = 1) -> Double {
+    guard cols > 0, rows > 0,
+          canvas.width.isFinite, canvas.height.isFinite,
+          canvas.width > 0, canvas.height > 0 else { return 0 }
+    let across = (Double(canvas.width) - Double(cols) * minimumCell) / Double(cols + 1)
+    let down = (Double(canvas.height) - Double(rows) * minimumCell) / Double(rows + 1)
+    return max(0, min(across, down).rounded(.down))
+}
+
+/// The most cells one edge of the canvas can hold at `gap`, each at least
+/// `minimumCell` points — the same physical limit for columns and rows.
+public func maximumCells(along length: Double, gap: Double, minimumCell: Double = 1) -> Int {
+    guard length.isFinite, length > 0 else { return 1 }
+    let gap = (gap.isFinite && gap > 0) ? gap : 0
+    return max(1, Int(((length - gap) / (minimumCell + gap)).rounded(.down)))
+}
+
 public func layout(
     cols: Int,
     rows: Int,

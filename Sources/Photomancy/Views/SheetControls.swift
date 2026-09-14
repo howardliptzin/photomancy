@@ -1,33 +1,33 @@
 import SwiftUI
+import AppKit
 import PhotomancyCore
 
-/// Columns, rows and gap, written straight to the collection's settings.
+/// Columns, rows, gap and background, written straight to the collection's
+/// settings. Small, quiet, always in the same place.
 ///
-/// The minimum needed to watch the sheet reflow. The considered version arrives
-/// in M4 with the rest of the per-collection settings; this exists so M2 can be
-/// judged at all.
+/// Numbers are typed, not dragged: "padding, exact to the pixel" means a field.
+/// Each has a stepper beside it for the pointer route. The only limits are
+/// physical — what the window can show — and live in the controller.
 struct SheetControls: View {
 
     @Environment(LibraryController.self) private var controller
+    @FocusState private var focused: Field?
+
+    private enum Field { case columns, rows, gap }
 
     var body: some View {
         @Bindable var controller = controller
 
         HStack(spacing: 18) {
-            Stepper(value: $controller.columns, in: 1...64) {
-                measure("Columns", controller.columns)
-            }
-            Stepper(value: $controller.rows, in: 1...64) {
-                measure("Rows", controller.rows)
-            }
+            number("Columns", value: $controller.columns, field: .columns)
+            number("Rows", value: $controller.rows, field: .rows)
+            number("Gap", value: gap, field: .gap, unit: "px")
 
-            HStack(spacing: 8) {
-                Text("Gap").font(.caption).foregroundStyle(.secondary)
-                Slider(value: $controller.gap, in: 0...48, step: 1)
-                    .frame(width: 130)
-                Text("\(Int(controller.gap)) px")
-                    .font(.caption).monospacedDigit()
-                    .frame(width: 42, alignment: .leading)
+            HStack(spacing: 6) {
+                label("Background")
+                // Opaque only: paper has no transparency.
+                ColorPicker("Background", selection: background, supportsOpacity: false)
+                    .labelsHidden()
             }
 
             Spacer(minLength: 12)
@@ -40,13 +40,46 @@ struct SheetControls: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
         .background(.bar)
+        // Space, P, ⌫ and Return are bare-key menu items; while a field has the
+        // keyboard they must yield, or nobody can type into it.
+        .onChange(of: focused) { _, field in controller.isEditingText = field != nil }
     }
 
-    private func measure(_ label: String, _ value: Int) -> some View {
+    private func label(_ text: String) -> some View {
+        Text(text).font(.caption).foregroundStyle(.secondary)
+    }
+
+    private func number(_ name: String, value: Binding<Int>, field: Field, unit: String? = nil) -> some View {
         HStack(spacing: 6) {
-            Text(label).font(.caption).foregroundStyle(.secondary)
-            Text("\(value)").font(.caption).monospacedDigit()
+            label(name)
+            HStack(spacing: 2) {
+                TextField(name, value: value, format: .number.grouping(.never))
+                    .labelsHidden()
+                    .font(.caption.monospacedDigit())
+                    .multilineTextAlignment(.trailing)
+                    .frame(width: 40)
+                    .focused($focused, equals: field)
+                    .onSubmit { focused = nil }
+                Stepper(name, onIncrement: { value.wrappedValue += 1 }, onDecrement: { value.wrappedValue -= 1 })
+                    .labelsHidden()
+            }
+            if let unit { label(unit) }
         }
+    }
+
+    private var gap: Binding<Int> {
+        Binding(get: { Int(controller.gap) }, set: { controller.gap = Double($0) })
+    }
+
+    private var background: Binding<Color> {
+        Binding(
+            get: { Color(controller.background) },
+            set: { picked in
+                if let converted = SheetColor(convertingToSRGB: NSColor(picked).cgColor) {
+                    controller.background = converted
+                }
+            }
+        )
     }
 
     /// Says plainly when a roll will be sampling from a bigger pool, and when

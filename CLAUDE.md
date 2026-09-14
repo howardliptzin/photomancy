@@ -14,8 +14,8 @@ Read it before writing code. Section numbers below refer to it.
 **Status:** M1–M3 complete and in daily use. Import and collections, bookmarks, the
 thumbnail cache, `layout()` and the sheet, and the loop — randomize, select, pin,
 remove, undo. Several settled decisions were reversed by using it; that is the point
-of stopping here. The week of use is done and M4 is under way: drag-to-position is
-built on `m4-drag`.
+of stopping here. The week of use is done and M4 is under way on branches: drag to
+position, the lightbox, the All Photos rule, and the settings bar.
 
 ## What this is
 
@@ -176,6 +176,7 @@ poor relation.
 | `⌫` | Remove selected from this collection — undoable |
 | `⌘⌫` | Delete selected from Photomancy — not undoable |
 | Double-click | Lightbox |
+| `↩` | Open or close the lightbox |
 | Drag | Move to a cell and pin there |
 | `←` `→` | In lightbox: move through photos |
 | `Esc` | Close lightbox |
@@ -190,6 +191,15 @@ poor relation.
   baseline, which the menu bar needs anyway. Plus a `?` overlay over the sheet,
   dismissed with `Esc`, because the loop is a full-window activity and nobody is
   looking at the menu bar while they are in it.
+- **The settings bar: typed numbers, a colour well, the shape beside the title.**
+  Columns, rows and gap are whole-number fields, each with a stepper for the pointer;
+  background is an opaque colour well whose choice is converted into sRGB, never
+  reinterpreted; the tally sits at the right. Cell shape is a quiet menu beside the
+  collection title, and a derived shape names what it resolved to — `Derived · 3:2`.
+  The only limits are physical: no more gap, columns or rows than leave every cell at
+  least a point in the current window, because past that the sheet goes blank.
+- **Return opens and closes the lightbox** — the keyboard route the table lacked.
+  `Space`, the Quick Look key, is Randomize.
 - **Undo spans shuffles.** Non-negotiable — it's what makes gambling on chance safe.
 - **Selection is a set, and Mac conventions decide it in one place.** Plain click
   replaces, `⌘` adds or removes one, `⇧` takes everything from the anchor to here.
@@ -326,6 +336,4 @@ or because it is cheap. Features are added after release only on enough user req
 
 ## Unsettled — ask, don't assume
 
-- **How the cell-shape override is chosen.** A pull-down near the collection title is
-  the standing proposal. Deferred to M4 with the rest of the settings UI; M2 honours
-  the stored value without offering a control for it.
+Nothing open at present.

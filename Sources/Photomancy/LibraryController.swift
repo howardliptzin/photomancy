@@ -103,19 +103,54 @@ final class LibraryController {
         }
     }
 
+    /// The sheet's size, reported by the sheet. Used only to keep the grid
+    /// controls inside what the window can physically show — past that,
+    /// `layout()` has no room and the sheet goes blank. Never a policy bound.
+    var canvas: CGSize = .zero
+
     var columns: Int {
         get { settings.columns }
-        set { updateSettings { $0.columns = max(1, newValue) } }
+        set { updateSettings { $0.columns = physicalCount(newValue, along: canvas.width) } }
     }
 
     var rows: Int {
         get { settings.rows }
-        set { updateSettings { $0.rows = max(1, newValue) } }
+        set { updateSettings { $0.rows = physicalCount(newValue, along: canvas.height) } }
     }
 
+    /// Whole pixels, and no more than leaves every cell visible.
     var gap: Double {
         get { settings.gap }
-        set { updateSettings { $0.gap = max(0, newValue) } }
+        set {
+            var gap = max(0, newValue.rounded())
+            if canvas.width > 0, canvas.height > 0 {
+                gap = min(gap, maximumGap(cols: columns, rows: rows, canvas: canvas))
+            }
+            updateSettings { $0.gap = gap }
+        }
+    }
+
+    var background: SheetColor {
+        get { settings.background }
+        set { updateSettings { $0.backgroundHex = newValue.hex } }
+    }
+
+    var cellShape: CellShape {
+        get { settings.cellShape }
+        set {
+            updateSettings { $0.cellShape = newValue }
+            refreshCellAspect()
+        }
+    }
+
+    var cellShapeTitle: String {
+        settings.cellShape.menuTitle(derivedAspect: derivedAspect)
+    }
+
+    private func physicalCount(_ value: Int, along length: CGFloat) -> Int {
+        let value = max(1, value)
+        guard length > 0 else { return value }
+        return min(value, maximumCells(along: Double(length), gap: settings.gap))
     }
 
     /// How many cells the current grid has, against how many photographs there
@@ -480,6 +515,10 @@ final class LibraryController {
     /// behaviour: a derived shape re-derives on import.
     private(set) var cellAspect: Double = 1
 
+    /// What a derived shape resolves to for this collection, whichever shape is
+    /// chosen — the menu names it. Cached for the same reason as `cellAspect`.
+    private(set) var derivedAspect: Double = 1
+
     /// The sheet looks photographs up by hash on every frame, so a linear scan
     /// of the library would be a scan per cell per frame.
     private var referenceIndex: [ContentHash: PhotoReference] = [:]
@@ -490,6 +529,7 @@ final class LibraryController {
 
     func refreshCellAspect() {
         cellAspect = store.document.cellAspect(for: selection)
+        derivedAspect = CellShape.derivedFromCollection.aspect(for: store.photos(in: selection))
         referenceIndex = Dictionary(
             store.document.references.map { ($0.id, $0) },
             uniquingKeysWith: { first, _ in first }

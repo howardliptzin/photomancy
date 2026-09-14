@@ -330,4 +330,35 @@ final class LayoutTests: XCTestCase {
     func testUnknownDimensionsFallBackToTheWholeArea() {
         XCTAssertEqual(lightboxFrame(pixelWidth: 0, pixelHeight: 0, in: lightboxArea, scale: 2), lightboxArea)
     }
+
+    // MARK: - Physical limits of the grid controls
+
+    /// At the limit the sheet still lays out; one pixel past it, it cannot.
+    func testTheMaximumGapIsTheLastOneThatStillLaysOut() {
+        let canvas = CGSize(width: 1200, height: 800)
+        let limit = maximumGap(cols: 5, rows: 4, canvas: canvas)
+        XCTAssertEqual(layout(cols: 5, rows: 4, gap: limit, cellAspect: nil, canvas: canvas).count, 20)
+        XCTAssertTrue(layout(cols: 5, rows: 4, gap: limit + 1, cellAspect: nil, canvas: canvas).isEmpty ||
+                      layout(cols: 5, rows: 4, gap: limit + 1, cellAspect: nil, canvas: canvas)[0].width < 1)
+        XCTAssertEqual(limit, limit.rounded(), "whole pixels")
+    }
+
+    func testACanvasWithNoSizeYetOffersNoGap() {
+        XCTAssertEqual(maximumGap(cols: 5, rows: 4, canvas: .zero), 0)
+    }
+
+    func testTheMostCellsStillLeavesEachAtLeastAPoint() {
+        let count = maximumCells(along: 1200, gap: 12)
+        let cells = layout(cols: count, rows: 1, gap: 12, cellAspect: nil, canvas: CGSize(width: 1200, height: 800))
+        XCTAssertEqual(cells.count, count)
+        XCTAssertGreaterThanOrEqual(cells[0].width, 1)
+        XCTAssertTrue(layout(cols: count + 1, rows: 1, gap: 12, cellAspect: nil, canvas: CGSize(width: 1200, height: 800)).isEmpty ||
+                      layout(cols: count + 1, rows: 1, gap: 12, cellAspect: nil, canvas: CGSize(width: 1200, height: 800))[0].width < 1)
+    }
+
+    /// Nothing caps an ordinary grid: 64 columns at a hairline is far inside it.
+    func testOrdinaryGridsAreNowhereNearTheLimit() {
+        XCTAssertGreaterThan(maximumCells(along: 1400, gap: 1), 64)
+        XCTAssertGreaterThan(maximumGap(cols: 8, rows: 8, canvas: CGSize(width: 1400, height: 900)), 48)
+    }
 }

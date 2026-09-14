@@ -147,4 +147,37 @@ final class SheetColorTests: XCTestCase {
                               "quieter than full contrast on \(background.hex)")
         }
     }
+
+    // MARK: - Converting a picked colour
+
+    /// Converted, not reinterpreted: a Display P3 colour's numbers are not its
+    /// sRGB numbers, and it comes back to itself when converted home.
+    func testAColourPickedInDisplayP3IsConvertedNotReinterpreted() throws {
+        let p3 = try XCTUnwrap(CGColorSpace(name: CGColorSpace.displayP3))
+        let picked = try XCTUnwrap(CGColor(colorSpace: p3, components: [0.8, 0.3, 0.2, 1]))
+        let stored = try XCTUnwrap(SheetColor(convertingToSRGB: picked))
+
+        let moved = abs(stored.red - 0.8) + abs(stored.green - 0.3) + abs(stored.blue - 0.2)
+        XCTAssertGreaterThan(moved, 0.02, "the components had to change")
+
+        let back = try XCTUnwrap(stored.cgColor.converted(to: p3, intent: .relativeColorimetric, options: nil)?.components)
+        XCTAssertEqual(Double(back[0]), 0.8, accuracy: 0.01)
+        XCTAssertEqual(Double(back[1]), 0.3, accuracy: 0.01)
+        XCTAssertEqual(Double(back[2]), 0.2, accuracy: 0.01)
+    }
+
+    func testAnSRGBColourIsUnchangedAndAlwaysOpaque() throws {
+        let srgb = try XCTUnwrap(CGColorSpace(name: CGColorSpace.sRGB))
+        let picked = try XCTUnwrap(CGColor(colorSpace: srgb, components: [0.2, 0.4, 0.6, 0.5]))
+        let stored = try XCTUnwrap(SheetColor(convertingToSRGB: picked))
+        XCTAssertEqual(stored.red, 0.2, accuracy: 0.001)
+        XCTAssertEqual(stored.blue, 0.6, accuracy: 0.001)
+        XCTAssertEqual(stored.alpha, 1, "paper has no transparency")
+    }
+
+    func testAGreyPickedFromTheGreyscaleSliderConverts() throws {
+        let stored = try XCTUnwrap(SheetColor(convertingToSRGB: CGColor(gray: 0.5, alpha: 1)))
+        XCTAssertEqual(stored.red, stored.green, accuracy: 0.001)
+        XCTAssertEqual(stored.green, stored.blue, accuracy: 0.001)
+    }
 }

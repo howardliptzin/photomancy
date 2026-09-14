@@ -66,6 +66,31 @@ struct ContentView: View {
                 Text("All Photos").font(.headline)
             }
         }
+        ToolbarItem(placement: .navigation) {
+            // Quiet, beside the title, because the shape belongs to the
+            // collection. A derived shape says what it resolved to.
+            if !controller.photographs.isEmpty {
+                Menu {
+                    Picker("Cell shape", selection: cellShape) {
+                        Text(CellShape.derivedFromCollection.menuTitle(derivedAspect: controller.derivedAspect))
+                            .tag(CellShape.derivedFromCollection)
+                        Text("Square").tag(CellShape.square)
+                        Text("3:2").tag(CellShape.threeByTwo)
+                        Text("4:3").tag(CellShape.fourByThree)
+                    }
+                    .pickerStyle(.inline)
+                    .labelsHidden()
+                } label: {
+                    Text(controller.cellShapeTitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .menuStyle(.button)
+                .buttonStyle(.borderless)
+                .fixedSize()
+                .help("Cell shape")
+            }
+        }
         ToolbarItem(placement: .principal) {
             if let progress = controller.importProgress {
                 HStack(spacing: 8) {
@@ -106,6 +131,10 @@ struct ContentView: View {
 }
 
 extension ContentView {
+    fileprivate var cellShape: Binding<CellShape> {
+        Binding(get: { controller.cellShape }, set: { controller.cellShape = $0 })
+    }
+
     fileprivate func collectionName(_ id: UUID) -> Binding<String> {
         Binding(
             get: { controller.store.document.collections.first { $0.id == id }?.name ?? "" },

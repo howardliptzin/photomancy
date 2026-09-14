@@ -49,10 +49,13 @@ struct SheetView: View {
 
     var body: some View {
         GeometryReader { proxy in
+            // A window made smaller than the stored gap allows lays out at the
+            // largest gap that still shows the cells, rather than going blank.
+            let gap = min(settings.gap, maximumGap(cols: settings.columns, rows: settings.rows, canvas: proxy.size))
             let cells = layout(
                 cols: settings.columns,
                 rows: settings.rows,
-                gap: settings.gap,
+                gap: gap,
                 cellAspect: controller.cellAspect,
                 canvas: proxy.size
             )
@@ -104,7 +107,7 @@ struct SheetView: View {
                             clickCount: NSApp.currentEvent?.clickCount ?? 1
                         )
                     }
-                    .gesture(dragGesture(cell: item.cell, photo: item.reference.id, cells: cells))
+                    .gesture(dragGesture(cell: item.cell, photo: item.reference.id, cells: cells, gap: gap))
                 }
 
                 // Shown whenever something is selected, not only while this
@@ -122,6 +125,7 @@ struct SheetView: View {
                 }
             }
             .coordinateSpace(.named(Self.space))
+            .onChange(of: proxy.size, initial: true) { _, size in controller.canvas = size }
         }
         .focusable()
         .focused($hasKeyboardFocus)
@@ -170,12 +174,12 @@ struct SheetView: View {
     /// Drag a photograph onto any cell. It moves there and is pinned; the cells
     /// between shift one place. Dropped in the dead space beyond the block, or
     /// back where it started, it returns and nothing is recorded.
-    private func dragGesture(cell: Int, photo: ContentHash, cells: [CGRect]) -> some Gesture {
+    private func dragGesture(cell: Int, photo: ContentHash, cells: [CGRect], gap: Double) -> some Gesture {
         DragGesture(minimumDistance: 4, coordinateSpace: .named(Self.space))
             .onChanged { value in
                 if drag == nil { drag = Drag(source: cell, photo: photo) }
                 drag?.translation = value.translation
-                let target = PhotomancyCore.cell(at: value.location, in: cells, gap: settings.gap)
+                let target = PhotomancyCore.cell(at: value.location, in: cells, gap: gap)
                 if target != drag?.target {
                     controller.stepping { drag?.target = target }
                 }
