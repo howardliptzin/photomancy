@@ -3,8 +3,8 @@
 Divination by photograph.
 
 A native macOS instrument for finding photographic sequences by chance: import a
-set of photographs, roll them into a grid, keep what surprises you, roll the rest
-again.
+set of photographs, roll them into a grid, pin what belongs, roll the rest
+again, and move frames into place as a sequence forms.
 
 The screen is the instrument. The grid fills the window and reflows as you resize
 it — 64 photographs at 8 × 8 with a hairline gap, or six at 3 × 2 — so sequencing

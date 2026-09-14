@@ -18,12 +18,21 @@ of stopping here. Next is M4 (§08), but not before the week of real use is done
 
 **Photomancy** — divination by photograph. A **chance-operation instrument** for
 finding photographic sequences: import photos, roll them into a grid, pin what
-surprises you, re-roll the rest. It also prints.
+belongs, re-roll the rest, and move frames into place as a sequence forms. It also
+prints.
 
-It is not a layout tool that happens to shuffle. Randomness is the method, not a
-starting point — this is aleatory practice (surrealist chance operations), where
-serendipity is the product. Curation happens at import. **Never re-frame it as
-narrative or editorial sequencing.**
+Chance ordering is its reason for being, and that does not change. Randomness is the
+method, not a starting point — this is aleatory practice (surrealist chance
+operations), where serendipity is where sequences come from. Selection happens at
+import; ordering is found by rolling.
+
+**Editing follows from chance, and was always part of it.** Rolling produces
+understanding of how the pictures fit together, and pinning is how the sequence found
+that way is saved. Drag-pinning — putting a frame exactly where the sequence wants it —
+is editorial and narrative intent by nature. There is nothing wrong with that, and it
+does not undercut the chance method: it is what the rolls are for. **Never re-frame it
+as a layout tool with a shuffle button** — the order is found by chance before it is
+shaped by hand.
 
 ## Architecture — settled
 
