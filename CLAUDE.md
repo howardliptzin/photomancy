@@ -193,6 +193,11 @@ poor relation.
 - **The lightbox walks the sheet in cell order**, skipping empty cells. The sequence
   on the sheet is the one being divined; collection order is import order and means
   nothing here.
+- **The lightbox never enlarges a photograph past its real size.** A small original is
+  shown one file pixel to one display pixel, with background around it: stretching it
+  would show it softer than the file is, and the lightbox is where a photographer looks
+  closely. It decodes for the photograph's own drawn long edge, never past the
+  original's — ImageIO does not enlarge, so a larger request only stores duplicates.
 - **`P` and the deletions work in the lightbox, on the photograph shown.** Same
   gesture, same meaning, everywhere.
 - **Selection is model state, not focus.** A selected cell stays selected when the

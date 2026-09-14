@@ -301,4 +301,33 @@ final class LayoutTests: XCTestCase {
         XCTAssertNil(cell(at: CGPoint(x: 20, y: 400), in: cells, gap: 12))
         XCTAssertNil(cell(at: CGPoint(x: 1180, y: 400), in: cells, gap: 12))
     }
+
+    // MARK: - The lightbox frame
+
+    private let lightboxArea = CGRect(x: 24, y: 24, width: 1600, height: 1000)
+
+    func testALargeOriginalIsFittedToTheLightbox() {
+        let frame = lightboxFrame(pixelWidth: 6000, pixelHeight: 4000, in: lightboxArea, scale: 2)
+        XCTAssertEqual(frame, fitted(aspectRatio: 1.5, in: lightboxArea))
+    }
+
+    /// One pixel of the file to one pixel of the display, never stretched.
+    func testASmallOriginalIsShownAtItsRealSizeCentred() {
+        let frame = lightboxFrame(pixelWidth: 1600, pixelHeight: 1200, in: lightboxArea, scale: 2)
+        XCTAssertEqual(frame.width, 800, accuracy: epsilon)
+        XCTAssertEqual(frame.height, 600, accuracy: epsilon)
+        XCTAssertEqual(frame.midX, lightboxArea.midX, accuracy: epsilon)
+        XCTAssertEqual(frame.midY, lightboxArea.midY, accuracy: epsilon)
+    }
+
+    func testRealSizeDependsOnTheDisplayScale() {
+        let retina = lightboxFrame(pixelWidth: 1600, pixelHeight: 1200, in: lightboxArea, scale: 2)
+        let standard = lightboxFrame(pixelWidth: 1600, pixelHeight: 1200, in: lightboxArea, scale: 1)
+        XCTAssertEqual(retina.width, 800, accuracy: epsilon)
+        XCTAssertEqual(standard, fitted(aspectRatio: 4.0 / 3.0, in: lightboxArea), "1600 points would not fit")
+    }
+
+    func testUnknownDimensionsFallBackToTheWholeArea() {
+        XCTAssertEqual(lightboxFrame(pixelWidth: 0, pixelHeight: 0, in: lightboxArea, scale: 2), lightboxArea)
+    }
 }

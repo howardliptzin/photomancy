@@ -51,4 +51,26 @@ final class ThumbnailSizeTests: XCTestCase {
         let buckets = Set((150...190).map { ThumbnailSize.bucket(forPoints: Double($0), scale: 2) })
         XCTAssertEqual(buckets.count, 1)
     }
+
+    // MARK: - Decoding for one photograph
+
+    /// A portrait frame in a landscape window is drawn at the window's height;
+    /// asking from the width would decode far more than can be shown.
+    func testAPortraitPhotographIsDecodedForItsOwnLongEdge() {
+        let drawn = fitted(aspectRatio: 2.0 / 3.0, in: CGRect(x: 0, y: 0, width: 2400, height: 1400))
+        XCTAssertEqual(ThumbnailSize.bucket(forPhotograph: drawn.size, originalLongEdge: 6000, scale: 2), 3072)
+        XCTAssertEqual(ThumbnailSize.bucket(forCell: CGSize(width: 2400, height: 1400), scale: 2), 5120,
+                       "what the area alone would have asked for")
+    }
+
+    /// ImageIO never enlarges, so asking for more only stores duplicates.
+    func testTheRequestNeverExceedsTheOriginal() {
+        XCTAssertEqual(ThumbnailSize.bucket(forPhotograph: CGSize(width: 1500, height: 1000), originalLongEdge: 1600, scale: 2), 1600)
+        XCTAssertEqual(ThumbnailSize.bucket(forPhotograph: CGSize(width: 3000, height: 2000), originalLongEdge: 1600, scale: 2), 1600,
+                       "a larger window asks the same key")
+    }
+
+    func testALargeOriginalStaysOnTheLadder() {
+        XCTAssertEqual(ThumbnailSize.bucket(forPhotograph: CGSize(width: 1400, height: 933), originalLongEdge: 6000, scale: 2), 3072)
+    }
 }

@@ -24,11 +24,24 @@ struct LightboxView: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let area = CGSize(
+            let area = CGRect(
+                x: Self.margin,
+                y: Self.margin,
                 width: max(1, proxy.size.width - 2 * Self.margin),
                 height: max(1, proxy.size.height - 2 * Self.margin)
             )
-            let pixels = ThumbnailSize.bucket(forCell: area, scale: displayScale)
+            // Fitted, but a small original stays at its real size.
+            let frame = lightboxFrame(
+                pixelWidth: reference.pixelWidth,
+                pixelHeight: reference.pixelHeight,
+                in: area,
+                scale: displayScale
+            )
+            let pixels = ThumbnailSize.bucket(
+                forPhotograph: frame.size,
+                originalLongEdge: max(reference.pixelWidth, reference.pixelHeight),
+                scale: displayScale
+            )
 
             ZStack(alignment: .topLeading) {
                 Color(background)
@@ -43,8 +56,8 @@ struct LightboxView: View {
                             .foregroundStyle(Color(background.blended(toward: background.contrastingInk, amount: 0.45)))
                     }
                 }
-                .frame(width: area.width, height: area.height)
-                .position(x: proxy.size.width / 2, y: proxy.size.height / 2)
+                .frame(width: frame.width, height: frame.height)
+                .position(x: frame.midX, y: frame.midY)
 
                 // Anchored to the area, as it is anchored to the cell on the
                 // sheet: the lightbox is one large cell.

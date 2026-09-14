@@ -60,6 +60,35 @@ public func cell(at point: CGPoint, in cells: [CGRect], gap: Double) -> Int? {
     return cells.firstIndex { $0.insetBy(dx: -reach, dy: -reach).contains(point) }
 }
 
+/// Where the lightbox draws a photograph: fitted to the area, but never larger
+/// than the original.
+///
+/// A small original is shown at its real size — one pixel of the file to one
+/// pixel of the display — with background around it. Stretching it to fill
+/// would keep every lightbox view the same size, but it would show the
+/// photograph softer than the file actually is, and the lightbox is where a
+/// photographer looks closely.
+///
+/// - Parameters:
+///   - pixelWidth: The original, orientation-corrected.
+///   - pixelHeight: The original, orientation-corrected.
+///   - area: The space inside the lightbox's margins, in points.
+///   - scale: The display's backing scale — pixels per point.
+public func lightboxFrame(pixelWidth: Int, pixelHeight: Int, in area: CGRect, scale: Double) -> CGRect {
+    guard pixelWidth > 0, pixelHeight > 0 else { return area }
+    let fit = fitted(aspectRatio: Double(pixelWidth) / Double(pixelHeight), in: area)
+    let scale = (scale.isFinite && scale >= 1) ? scale : 1
+    let native = CGSize(width: Double(pixelWidth) / scale, height: Double(pixelHeight) / scale)
+    // Same shape, so one edge decides it.
+    guard native.width < fit.width else { return fit }
+    return CGRect(
+        x: area.midX - native.width / 2,
+        y: area.midY - native.height / 2,
+        width: native.width,
+        height: native.height
+    )
+}
+
 public func layout(
     cols: Int,
     rows: Int,

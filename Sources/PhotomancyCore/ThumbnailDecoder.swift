@@ -183,4 +183,19 @@ public enum ThumbnailSize {
     public static func bucket(forCell size: CGSize, scale: Double) -> Int {
         bucket(forPoints: max(size.width, size.height), scale: scale)
     }
+
+    /// The size to decode for a photograph drawn at `size` points: its own long
+    /// edge, rounded up the ladder, but never past the original's long edge.
+    ///
+    /// From the photograph's drawn size rather than the space around it: a
+    /// portrait frame in a landscape window is drawn at the window's height, and
+    /// asking from the width decodes far more than can be shown. And capped at
+    /// the original, because ImageIO never enlarges — asking a 1600-pixel file
+    /// for 3072 returns 1600 anyway, and every larger request would store the
+    /// same image again under another key.
+    public static func bucket(forPhotograph size: CGSize, originalLongEdge: Int, scale: Double) -> Int {
+        let wanted = bucket(forPoints: max(size.width, size.height), scale: scale)
+        guard originalLongEdge > 0 else { return wanted }
+        return min(wanted, originalLongEdge)
+    }
 }
