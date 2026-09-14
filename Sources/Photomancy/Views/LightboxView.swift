@@ -63,9 +63,11 @@ struct LightboxView: View {
                 .position(x: frame.midX, y: frame.midY)
 
                 // The file's name, centred under the photograph and following
-                // it — a small original keeps its name beside it, not at the
-                // foot of the window. The one exception to "no captions": the
-                // lightbox only, never the sheet, never paper.
+                // it, so a small original keeps its name beside it rather than at
+                // the foot of the window. Essential rather than decoration:
+                // reviewing often means choosing between near-identical frames,
+                // and the name is what tells them apart and what carries the
+                // choice out of the app. Nothing is written on the sheet or paper.
                 Text(reference.displayName)
                     .font(.caption)
                     .foregroundStyle(Color(background.captionInk))

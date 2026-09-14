@@ -198,10 +198,13 @@ poor relation.
   would show it softer than the file is, and the lightbox is where a photographer looks
   closely. It decodes for the photograph's own drawn long edge, never past the
   original's — ImageIO does not enlarge, so a larger request only stores duplicates.
-- **The lightbox names the file.** Its name sits centred below the photograph, at the
-  caption size of the bar's gap value, in a quiet ink derived from the sheet background
-  so it reads on white and black alike. The only exception to "no captions" — it
-  identifies what is being looked at closely, and appears nowhere else.
+- **The lightbox names the file — essential, not bloat.** Reviewing a sequence often
+  means choosing between near-identical frames, and the file's name is what tells them
+  apart and what carries the decision out of the app, to wherever the frame is worked on
+  next. Names are useful to have at hand in general. So the name sits centred below the
+  photograph, following it, at the caption size of the bar's gap value, in a quiet ink
+  derived from the sheet background so it reads on white and black alike. It does not
+  reopen captions: nothing is written on the sheet or on paper.
 - **`P` and the deletions work in the lightbox, on the photograph shown.** Same
   gesture, same meaning, everywhere.
 - **Selection is model state, not focus.** A selected cell stays selected when the
@@ -255,7 +258,7 @@ and logic-free so it can be torn up without touching layout, caching or state.
 Cut, copy, paste and select all — nothing responds to them, so they are removed from
 the menu rather than left greyed out forever · watched folders · publishing to a server · constraint rules for the shuffle · editing
 or cropping · **Fill / any crop-to-cell mode** · multi-page contact sheets ·
-captions/metadata overlays (one exception: the file's name below a photograph in the lightbox — never on the sheet, never on paper) · iCloud sync · soft proofing or CMYK · restoring a full
+captions/metadata overlays on the sheet or on paper (the file's name in the lightbox is not one of these — see Interaction) · iCloud sync · soft proofing or CMYK · restoring a full
 arrangement across launches.
 
 Each sounds small and each moves this toward being a weaker Lightroom. If I propose
