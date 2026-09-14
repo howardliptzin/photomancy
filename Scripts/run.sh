@@ -17,6 +17,14 @@ BRANCH=$(git branch --show-current)
 
 printf '\033[1mBuilding %s…\033[0m\n' "$BRANCH"
 mkdir -p build
+# The project file is generated and not tracked, so after a branch switch it
+# still lists the files of the branch you left and the build fails on a file
+# that is not there. Regenerating costs about a second.
+if ! xcodegen generate --quiet > "$LOG" 2>&1; then
+    printf '\033[31mCould not generate the project.\033[0m\n'
+    cat "$LOG"
+    exit 1
+fi
 if ! xcodebuild -project Photomancy.xcodeproj -scheme Photomancy \
         -configuration Debug -derivedDataPath build/DerivedData build > "$LOG" 2>&1; then
     printf '\033[31mBuild failed.\033[0m\n'
