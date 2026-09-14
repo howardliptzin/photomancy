@@ -123,8 +123,14 @@ shaped by hand.
 - **Decode at display size** via ImageIO, off the main thread. Two-tier cache:
   in-memory `NSCache` + on-disk in Application Support.
 - Collections are app-managed reference lists, **not folders**. Plain `Codable` store.
-- **All Photos** is a virtual collection: every reference, de-duped by content hash.
-  Own pins, own settings. The first-launch view.
+- **All Photos is the union of the collections**, and holds nothing of its own: every
+  photograph in any collection, once, de-duped by content hash. It keeps its own pins
+  and settings, because it is still a sheet to roll. A photograph enters the library
+  only into a named collection — importing while All Photos is open creates a
+  collection and opens it for naming — and leaves the library with its last collection:
+  removing it from that collection takes it out (undoably), and deleting a collection
+  takes the photographs no other collection holds. Loading gathers anything in no
+  collection into **Unfiled**, which repaired libraries written before this rule.
 
 ## M1 is not done until
 
@@ -230,9 +236,12 @@ poor relation.
   is shared hashes — and stay 200 deep. A removal carries what it took away, so the
   stack is trimmed to the last ten of those, along with everything older, and undo
   never reaches a step that looks reversible and is not.
-- **A removal's inverse is membership, not the reference.** Remove-from-collection
-  never touches the `PhotoReference`, so undoing it restores ids, their *indices* in
-  the ordered membership, and any pins — about a hundred bytes a photograph. Measured
+- **A removal's inverse is membership — and the reference only when it left the
+  library.** Undoing restores ids, their *indices* in the ordered membership, and any
+  pins — about a hundred bytes a photograph. A photograph that was in no other
+  collection also left the library, so its `PhotoReference` travels in the step (about
+  a kilobyte with its bookmark) and goes back at its index in the library, with its All
+  Photos pins; the ten-removal bound caps what that holds. Measured
   alternative: a whole-document snapshot is 4.5 MB at 5,000 references, which is why
   it was rejected.
 - **Deleting from the library clears the history.** The step is not undoable by
