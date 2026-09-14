@@ -571,7 +571,8 @@ final class LibraryController {
 
     /// Photographs in no other collection leave the library with it — All Photos
     /// is the union of the collections. Not undoable, like deleting from the
-    /// library, so a sheet that was showing them is dealt afresh.
+    /// library, so the history is cleared, and a sheet that was showing them is
+    /// dealt afresh.
     func deleteCollection(_ id: UUID) {
         store.removeCollection(id)
         refreshCellAspect()
@@ -579,6 +580,11 @@ final class LibraryController {
             selection = nil
         } else if selection == nil {
             rebuildArrangement(resettingHistory: true)
+        } else {
+            // This sheet is unchanged, but its undo steps are not safe: undoing a
+            // removal of a photograph the deleted collection also held would put
+            // back a membership whose photograph has left the library.
+            history.reset(to: history.current)
         }
     }
 

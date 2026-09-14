@@ -129,8 +129,13 @@ shaped by hand.
   only into a named collection — importing while All Photos is open creates a
   collection and opens it for naming — and leaves the library with its last collection:
   removing it from that collection takes it out (undoably), and deleting a collection
-  takes the photographs no other collection holds. Loading gathers anything in no
-  collection into **Unfiled**, which repaired libraries written before this rule.
+  takes the photographs no other collection holds. **The rule is structural, not a
+  repair:** the library document's only public way in is adding photographs to a named
+  collection, collections cannot be edited from outside it, and a randomized test checks
+  after every step that the library equals the union. Deleting a collection clears the
+  undo history, as deleting from the library does — otherwise undoing a removal of a
+  photograph the deleted collection also held would restore a membership whose
+  photograph had left the library.
 
 ## M1 is not done until
 

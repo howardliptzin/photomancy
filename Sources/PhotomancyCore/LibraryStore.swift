@@ -54,13 +54,6 @@ public final class LibraryStore {
             let data = try Data(contentsOf: fileURL)
             document = try JSONDecoder().decode(LibraryDocument.self, from: data)
             log.info("loaded \(self.document.references.count) references, \(self.document.collections.count) collections")
-            // All Photos is the union of the collections; nothing may sit in the
-            // library outside one, or it could be neither seen nor deleted.
-            let gathered = document.gatherUnfiled()
-            if gathered > 0 {
-                log.notice("gathered \(gathered, privacy: .public) photographs in no collection into Unfiled")
-                saveNow()
-            }
         } catch {
             // Refuse to overwrite something unreadable — a bad parse must not
             // become data loss on the next save.
@@ -99,10 +92,7 @@ public final class LibraryStore {
     /// collections, so a photograph with no collection to go into is not added.
     @discardableResult
     public func add(_ references: [PhotoReference], to collectionID: UUID) -> Int {
-        guard document.collections.contains(where: { $0.id == collectionID }) else { return 0 }
-        var added = 0
-        for reference in references where document.insert(reference) { added += 1 }
-        document.add(references.map(\.id), to: collectionID)
+        let added = document.add(references, to: collectionID)
         scheduleSave()
         return added
     }
@@ -138,8 +128,7 @@ public final class LibraryStore {
     }
 
     public func rename(_ id: UUID, to name: String) {
-        guard let offset = document.collections.firstIndex(where: { $0.id == id }) else { return }
-        document.collections[offset].name = name
+        document.renameCollection(id, to: name)
         scheduleSave()
     }
 

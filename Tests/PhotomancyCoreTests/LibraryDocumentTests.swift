@@ -169,36 +169,17 @@ extension LibraryDocumentTests {
         XCTAssertTrue(document.collections.isEmpty)
     }
 
-    /// A library written before the rule holds photographs imported straight
-    /// into All Photos. They are gathered, not lost.
-    func testPhotographsInNoCollectionAreGatheredIntoUnfiled() {
+    /// The one public way in. Nothing enters the library without a collection to
+    /// go into, and a photograph already there still joins a second collection.
+    func testPhotographsEnterTheLibraryOnlyIntoACollection() {
         var document = LibraryDocument()
-        for seed in ["a", "b", "c"] { document.insert(reference(seed)) }
-        let set = document.addCollection(named: "Set")
-        document.add([reference("b").id], to: set.id)
+        XCTAssertEqual(document.add([reference("a")], to: UUID()), 0)
+        XCTAssertTrue(document.references.isEmpty, "no collection, nothing added")
 
-        XCTAssertEqual(document.gatherUnfiled(), 2)
-
-        let unfiled = document.collections.first { $0.name == "Unfiled" }
-        XCTAssertEqual(unfiled?.memberIDs, [reference("a").id, reference("c").id], "in library order")
-        XCTAssertEqual(document.gatherUnfiled(), 0, "nothing left to gather")
-        XCTAssertEqual(document.collections.count, 2)
-    }
-
-    func testGatheringAddsToAnExistingUnfiledRatherThanMakingASecond() {
-        var document = LibraryDocument()
-        for seed in ["a", "b"] { document.insert(reference(seed)) }
-        let unfiled = document.addCollection(named: "Unfiled")
-        document.add([reference("a").id], to: unfiled.id)
-
-        XCTAssertEqual(document.gatherUnfiled(), 1)
-        XCTAssertEqual(document.collections.count, 1)
-        XCTAssertEqual(document.collections[0].memberIDs, [reference("a").id, reference("b").id])
-    }
-
-    func testANewLibraryHasNothingToGather() {
-        var document = LibraryDocument()
-        XCTAssertEqual(document.gatherUnfiled(), 0)
-        XCTAssertTrue(document.collections.isEmpty)
+        let one = document.addCollection(named: "One")
+        let two = document.addCollection(named: "Two")
+        XCTAssertEqual(document.add([reference("a")], to: one.id), 1)
+        XCTAssertEqual(document.add([reference("a")], to: two.id), 0, "already in the library")
+        XCTAssertEqual(document.photos(in: two.id).map(\.displayName), ["a.jpg"])
     }
 }

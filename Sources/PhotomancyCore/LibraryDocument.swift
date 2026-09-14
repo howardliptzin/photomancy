@@ -10,7 +10,9 @@ public struct LibraryDocument: Codable, Sendable, Equatable {
     public var version: Int
     /// Unique by content hash, in import order.
     public private(set) var references: [PhotoReference]
-    public var collections: [PhotoCollection]
+    /// Read-only from outside: membership changes only through the methods here,
+    /// which keep the library equal to the union of the collections.
+    public private(set) var collections: [PhotoCollection]
     /// Settings for the All Photos view, which is virtual and so has nowhere
     /// else to keep them.
     public var allPhotosSettings: SheetSettings
@@ -68,10 +70,31 @@ public struct LibraryDocument: Codable, Sendable, Equatable {
     /// bytes imported twice from two paths are one photograph, which is what
     /// makes All Photos de-duplicate.
     @discardableResult
-    public mutating func insert(_ reference: PhotoReference) -> Bool {
+    ///
+    /// Not public. On its own it would put a photograph in the library outside
+    /// any collection, which All Photos — the union of the collections — forbids.
+    /// The app's only way in is `add(_:to:)` with references.
+    mutating func insert(_ reference: PhotoReference) -> Bool {
         guard !references.contains(where: { $0.id == reference.id }) else { return false }
         references.append(reference)
         return true
+    }
+
+    /// The one public way into the library: into a named collection. Returns how
+    /// many photographs were new to the library. One already there still joins
+    /// this collection; with no such collection, nothing is added at all.
+    @discardableResult
+    public mutating func add(_ references: [PhotoReference], to collectionID: UUID) -> Int {
+        guard collections.contains(where: { $0.id == collectionID }) else { return 0 }
+        var added = 0
+        for reference in references where insert(reference) { added += 1 }
+        add(references.map(\.id), to: collectionID)
+        return added
+    }
+
+    public mutating func renameCollection(_ id: UUID, to name: String) {
+        guard let offset = collections.firstIndex(where: { $0.id == id }) else { return }
+        collections[offset].name = name
     }
 
     public mutating func updateBookmark(for id: ContentHash, to data: Data) {
@@ -154,26 +177,6 @@ public struct LibraryDocument: Codable, Sendable, Equatable {
         return ids.subtracting(collections.flatMap(\.memberIDs))
     }
 
-    /// Puts every photograph that is in no collection into one named `name`, and
-    /// returns how many.
-    ///
-    /// All Photos is the union of the collections. A library written before that
-    /// rule can hold photographs imported straight into All Photos, which would
-    /// otherwise vanish from view with nothing lost on disk and no way to reach
-    /// them. Runs on every load, so it also repairs anything that ever slips
-    /// through. An existing collection of that name is added to, not duplicated.
-    @discardableResult
-    public mutating func gatherUnfiled(into name: String = "Unfiled") -> Int {
-        let members = Set(collections.flatMap(\.memberIDs))
-        let loose = references.map(\.id).filter { !members.contains($0) }
-        guard !loose.isEmpty else { return 0 }
-        if let offset = collections.firstIndex(where: { $0.name == name }) {
-            collections[offset].add(loose)
-        } else {
-            collections.append(PhotoCollection(name: name, memberIDs: loose))
-        }
-        return loose.count
-    }
 
     public mutating func remove(_ ids: Set<ContentHash>) {
         references.removeAll { ids.contains($0.id) }
@@ -210,7 +213,7 @@ public struct LibraryDocument: Codable, Sendable, Equatable {
     ///
     /// Read straight from `references` because the two are kept equal by rule: a
     /// photograph enters the library only into a collection, and leaves it with
-    /// its last one. `gatherUnfiled()` repairs a library written before that rule.
+    /// its last one — and nothing outside this type can do either another way.
     public var allPhotos: [PhotoReference] {
         references
     }
