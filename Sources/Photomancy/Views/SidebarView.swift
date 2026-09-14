@@ -8,21 +8,51 @@ struct SidebarView: View {
 
     @FocusState private var renameFieldFocused: Bool
 
+    /// A row in the sidebar.
+    ///
+    /// Not `UUID?`. A `List` reads a `nil` selection as "nothing selected", so a
+    /// row tagged `nil` could never be chosen — which is why All Photos did
+    /// nothing when clicked. Every row needs a real value.
+    private enum Row: Hashable {
+        case allPhotos
+        case collection(UUID)
+    }
+
+    /// Rows onto the controller's selection, where `nil` is still All Photos.
+    ///
+    /// Writes only a real change: the selection resets the sheet and its history
+    /// whenever it is assigned, so re-clicking the open row must not re-roll it.
+    /// A click in empty space deselects nothing — something is always open.
+    private var rowSelection: Binding<Row?> {
+        Binding(
+            get: { selection.map(Row.collection) ?? .allPhotos },
+            set: { row in
+                let chosen: UUID?
+                switch row {
+                case .allPhotos: chosen = nil
+                case .collection(let id): chosen = id
+                case nil: return
+                }
+                if chosen != selection { selection = chosen }
+            }
+        )
+    }
+
     var body: some View {
         @Bindable var controller = controller
 
-        List(selection: $selection) {
+        List(selection: rowSelection) {
             Section {
                 Label("All Photos", systemImage: "square.grid.2x2")
                     .badge(controller.store.document.references.count)
-                    .tag(UUID?.none)
+                    .tag(Row.allPhotos)
             }
 
             if !controller.store.document.collections.isEmpty {
                 Section("Collections") {
                     ForEach(controller.store.document.collections) { collection in
                         row(for: collection)
-                            .tag(UUID?.some(collection.id))
+                            .tag(Row.collection(collection.id))
                     }
                 }
             }
