@@ -104,6 +104,13 @@ public struct SheetColor: Sendable, Hashable {
         blended(toward: contrastingInk, amount: 0.07)
     }
 
+    /// Quiet text drawn on the background itself — the filename under a
+    /// photograph in the lightbox. Derived from the background so it reads on a
+    /// white sheet and a black one alike, without competing with the photograph.
+    public var captionInk: SheetColor {
+        blended(toward: contrastingInk, amount: 0.55)
+    }
+
     public var cgColor: CGColor {
         CGColor(srgbRed: red, green: green, blue: blue, alpha: alpha)
     }

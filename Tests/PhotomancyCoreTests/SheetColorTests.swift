@@ -134,4 +134,17 @@ final class SheetColorTests: XCTestCase {
         settings.backgroundHex = "#1A1A1A"
         XCTAssertEqual(settings.background, SheetColor(hex: "#1A1A1A"))
     }
+
+    // MARK: - Caption ink
+
+    /// The filename must read on whatever background was chosen, quietly.
+    func testCaptionInkReadsOnLightAndDarkBackgroundsWithoutGoingFullContrast() {
+        for background in [SheetColor.white, .black, SheetColor(hex: "#777777")!, SheetColor(hex: "#1E2A3A")!] {
+            let ink = background.captionInk
+            let separation = abs(ink.relativeLuminance - background.relativeLuminance)
+            XCTAssertGreaterThan(separation, 0.2, "legible on \(background.hex)")
+            XCTAssertLessThan(separation, abs(background.contrastingInk.relativeLuminance - background.relativeLuminance),
+                              "quieter than full contrast on \(background.hex)")
+        }
+    }
 }

@@ -21,6 +21,9 @@ struct LightboxView: View {
     @State private var failure: String?
 
     private static let margin: CGFloat = 24
+    /// The filename's line, and the space between it and the photograph.
+    private static let captionHeight: CGFloat = 16
+    private static let captionGap: CGFloat = 8
 
     var body: some View {
         GeometryReader { proxy in
@@ -28,7 +31,7 @@ struct LightboxView: View {
                 x: Self.margin,
                 y: Self.margin,
                 width: max(1, proxy.size.width - 2 * Self.margin),
-                height: max(1, proxy.size.height - 2 * Self.margin)
+                height: max(1, proxy.size.height - 2 * Self.margin - Self.captionGap - Self.captionHeight)
             )
             // Fitted, but a small original stays at its real size.
             let frame = lightboxFrame(
@@ -58,6 +61,18 @@ struct LightboxView: View {
                 }
                 .frame(width: frame.width, height: frame.height)
                 .position(x: frame.midX, y: frame.midY)
+
+                // The file's name, centred under the photograph and following
+                // it — a small original keeps its name beside it, not at the
+                // foot of the window. The one exception to "no captions": the
+                // lightbox only, never the sheet, never paper.
+                Text(reference.displayName)
+                    .font(.caption)
+                    .foregroundStyle(Color(background.captionInk))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .frame(width: area.width, height: Self.captionHeight)
+                    .position(x: area.midX, y: frame.maxY + Self.captionGap + Self.captionHeight / 2)
 
                 // Anchored to the area, as it is anchored to the cell on the
                 // sheet: the lightbox is one large cell.
