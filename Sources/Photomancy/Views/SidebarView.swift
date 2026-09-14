@@ -89,8 +89,7 @@ struct SidebarView: View {
                 .contextMenu {
                     Button("Rename") { controller.renamingCollection = collection.id }
                     Button("Delete Collection", role: .destructive) {
-                        controller.store.removeCollection(collection.id)
-                        if selection == collection.id { selection = nil }
+                        controller.deleteCollection(collection.id)
                     }
                 }
         }

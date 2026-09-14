@@ -125,7 +125,9 @@ struct EmptyLibraryView: View {
                 .foregroundStyle(.tertiary)
             Text("Drag photographs here")
                 .font(.title3)
-            Text("Or a folder of them. Curation happens now — after this, chance takes over.")
+            Text(controller.selection == nil
+                 ? "Or a folder of them. They go into a new collection. Selection happens now; the order is found by rolling."
+                 : "Or a folder of them. Selection happens now; the order is found by rolling.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

@@ -98,11 +98,37 @@ public struct LibraryDocument: Codable, Sendable, Equatable {
 
         let pins = collections[offset].pins.filter { ids.contains($0.photo) }
         collections[offset].remove(ids)
-        return Restoration(collection: collectionID, memberships: memberships, pins: pins)
+
+        // All Photos is the union of the collections, so a photograph that was
+        // only in this one leaves the library with it.
+        let departing = unfiled(among: Set(memberships.map(\.photo)))
+        let departures = references.enumerated()
+            .filter { departing.contains($0.element.id) }
+            .map { Restoration.Departure(reference: $0.element, index: $0.offset) }
+        let allPhotosPins = self.allPhotosPins.filter { departing.contains($0.photo) }
+        references.removeAll { departing.contains($0.id) }
+        self.allPhotosPins.removeAll { departing.contains($0.photo) }
+
+        return Restoration(
+            collection: collectionID,
+            memberships: memberships,
+            pins: pins,
+            departures: departures,
+            allPhotosPins: allPhotosPins
+        )
     }
 
     public mutating func restore(_ restoration: Restoration) {
         guard let offset = collections.firstIndex(where: { $0.id == restoration.collection }) else { return }
+        // Back into the library first, each where it sat, ascending so each index
+        // is right by the time it is used.
+        for departure in restoration.departures.sorted(by: { $0.index < $1.index })
+        where !references.contains(where: { $0.id == departure.reference.id }) {
+            references.insert(departure.reference, at: min(max(departure.index, 0), references.count))
+        }
+        for pin in restoration.allPhotosPins where !allPhotosPins.contains(pin) {
+            allPhotosPins.append(pin)
+        }
         // Ascending, so each index is correct by the time it is used.
         for membership in restoration.memberships.sorted(by: { $0.index < $1.index }) {
             collections[offset].insert(membership.photo, at: membership.index)
@@ -110,16 +136,43 @@ public struct LibraryDocument: Codable, Sendable, Equatable {
         collections[offset].restore(restoration.pins)
     }
 
-    /// `nil` means All Photos, and All Photos is every reference — so removing
-    /// there is removing from the library, while removing from a collection only
-    /// takes the photograph out of that list.
+    /// `nil` means All Photos, the union of the collections — so removing there
+    /// is removing from the library. Removing from a collection takes the
+    /// photograph out of that list, and out of the library only if it was in no
+    /// other.
     public mutating func remove(_ ids: Set<ContentHash>, from collectionID: UUID?) {
         guard let collectionID else {
             remove(ids)
             return
         }
-        guard let offset = collections.firstIndex(where: { $0.id == collectionID }) else { return }
-        collections[offset].remove(ids)
+        _ = removeFromCollection(ids, collectionID: collectionID)
+    }
+
+    /// Of these photographs, the ones no collection holds.
+    private func unfiled(among ids: Set<ContentHash>) -> Set<ContentHash> {
+        guard !ids.isEmpty else { return [] }
+        return ids.subtracting(collections.flatMap(\.memberIDs))
+    }
+
+    /// Puts every photograph that is in no collection into one named `name`, and
+    /// returns how many.
+    ///
+    /// All Photos is the union of the collections. A library written before that
+    /// rule can hold photographs imported straight into All Photos, which would
+    /// otherwise vanish from view with nothing lost on disk and no way to reach
+    /// them. Runs on every load, so it also repairs anything that ever slips
+    /// through. An existing collection of that name is added to, not duplicated.
+    @discardableResult
+    public mutating func gatherUnfiled(into name: String = "Unfiled") -> Int {
+        let members = Set(collections.flatMap(\.memberIDs))
+        let loose = references.map(\.id).filter { !members.contains($0) }
+        guard !loose.isEmpty else { return 0 }
+        if let offset = collections.firstIndex(where: { $0.name == name }) {
+            collections[offset].add(loose)
+        } else {
+            collections.append(PhotoCollection(name: name, memberIDs: loose))
+        }
+        return loose.count
     }
 
     public mutating func remove(_ ids: Set<ContentHash>) {
@@ -152,8 +205,12 @@ public struct LibraryDocument: Codable, Sendable, Equatable {
 
     // MARK: - Views
 
-    /// The virtual collection: every reference, once. The widest pool chance can
-    /// draw from, and the first-launch view before any collection exists.
+    /// The union of the collections: every photograph in any of them, once. The
+    /// widest pool chance can draw from.
+    ///
+    /// Read straight from `references` because the two are kept equal by rule: a
+    /// photograph enters the library only into a collection, and leaves it with
+    /// its last one. `gatherUnfiled()` repairs a library written before that rule.
     public var allPhotos: [PhotoReference] {
         references
     }
@@ -189,16 +246,23 @@ public struct LibraryDocument: Codable, Sendable, Equatable {
         return collection
     }
 
-    public mutating func removeCollection(_ id: UUID) {
+    /// Photographs in no other collection leave the library with it — All Photos
+    /// is the union of the collections. Returns the ones that left.
+    @discardableResult
+    public mutating func removeCollection(_ id: UUID) -> Set<ContentHash> {
+        let members = collections.first(where: { $0.id == id })?.memberIDs ?? []
         collections.removeAll { $0.id == id }
         if lastOpenedCollection == id { lastOpenedCollection = nil }
+        let departing = unfiled(among: Set(members))
+        references.removeAll { departing.contains($0.id) }
+        allPhotosPins.removeAll { departing.contains($0.photo) }
+        return departing
     }
 
-    /// Adding to All Photos (`nil`) is a no-op beyond the reference already
-    /// existing — every reference is in All Photos by definition.
-    public mutating func add(_ ids: [ContentHash], to collectionID: UUID?) {
-        guard let collectionID,
-              let offset = collections.firstIndex(where: { $0.id == collectionID }) else { return }
+    /// Always into a named collection. All Photos holds nothing of its own, so
+    /// there is no adding to it.
+    public mutating func add(_ ids: [ContentHash], to collectionID: UUID) {
+        guard let offset = collections.firstIndex(where: { $0.id == collectionID }) else { return }
         collections[offset].add(ids)
     }
 }

@@ -519,7 +519,15 @@ final class LibraryController {
 
     func importPhotographs(from urls: [URL]) {
         guard !urls.isEmpty else { return }
-        let destination = selection
+        // All Photos is the union of the collections and holds nothing of its
+        // own. Photographs arriving there — dropped on the window, opened with
+        // Photomancy, or on first launch — go into a new collection, opened with
+        // its name ready to type.
+        if selection == nil {
+            newCollection()
+            renamingCollection = selection
+        }
+        guard let destination = selection else { return }
         importProgress = ImportProgress(completed: 0, total: 0)
 
         Task {
@@ -558,8 +566,20 @@ final class LibraryController {
 
     func deleteSelectedCollection() {
         guard let selection else { return }
-        store.removeCollection(selection)
-        self.selection = nil
+        deleteCollection(selection)
+    }
+
+    /// Photographs in no other collection leave the library with it — All Photos
+    /// is the union of the collections. Not undoable, like deleting from the
+    /// library, so a sheet that was showing them is dealt afresh.
+    func deleteCollection(_ id: UUID) {
+        store.removeCollection(id)
+        refreshCellAspect()
+        if selection == id {
+            selection = nil
+        } else if selection == nil {
+            rebuildArrangement(resettingHistory: true)
+        }
     }
 
     // MARK: - Diagnostics

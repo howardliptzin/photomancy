@@ -2,11 +2,11 @@ import Foundation
 
 /// What was taken out of a collection, and everything needed to put it back.
 ///
-/// Only membership is restored, because only membership was removed —
-/// "Remove from Collection" never touches the reference itself. That makes the
-/// inverse cheap: identities, positions and pins, on the order of a hundred
-/// bytes a photograph, against the ~940-byte bookmark that would be needed to
-/// restore a reference deleted from the library.
+/// Usually only membership is restored, because usually only membership was
+/// removed: identities, positions and pins, on the order of a hundred bytes a
+/// photograph. The exception is a photograph that was in no other collection —
+/// All Photos is the union of the collections, so it left the library as well,
+/// and its reference (with its ~940-byte bookmark) travels here too.
 public struct Restoration: Equatable, Sendable {
 
     /// Where a photograph sat in the collection's ordered membership. The order
@@ -21,15 +21,41 @@ public struct Restoration: Equatable, Sendable {
         }
     }
 
+    /// A photograph that left the library along with its last collection, and
+    /// where it sat in the library's order.
+    public struct Departure: Equatable, Sendable {
+        public let reference: PhotoReference
+        public let index: Int
+        public init(reference: PhotoReference, index: Int) {
+            self.reference = reference
+            self.index = index
+        }
+    }
+
     public let collection: UUID
     public let memberships: [Membership]
     /// Pins that referred to those photographs and went with them.
     public let pins: [Pin]
+    /// Photographs this was the last collection for. All Photos is the union of
+    /// the collections, so they left the library too — carried here, bookmark
+    /// and all, so undo still puts them back. Bounded by the ten reversible
+    /// removals.
+    public let departures: [Departure]
+    /// All Photos pins on those departed photographs.
+    public let allPhotosPins: [Pin]
 
-    public init(collection: UUID, memberships: [Membership], pins: [Pin]) {
+    public init(
+        collection: UUID,
+        memberships: [Membership],
+        pins: [Pin],
+        departures: [Departure] = [],
+        allPhotosPins: [Pin] = []
+    ) {
         self.collection = collection
         self.memberships = memberships
         self.pins = pins
+        self.departures = departures
+        self.allPhotosPins = allPhotosPins
     }
 }
 

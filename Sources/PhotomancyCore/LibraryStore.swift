@@ -54,6 +54,13 @@ public final class LibraryStore {
             let data = try Data(contentsOf: fileURL)
             document = try JSONDecoder().decode(LibraryDocument.self, from: data)
             log.info("loaded \(self.document.references.count) references, \(self.document.collections.count) collections")
+            // All Photos is the union of the collections; nothing may sit in the
+            // library outside one, or it could be neither seen nor deleted.
+            let gathered = document.gatherUnfiled()
+            if gathered > 0 {
+                log.notice("gathered \(gathered, privacy: .public) photographs in no collection into Unfiled")
+                saveNow()
+            }
         } catch {
             // Refuse to overwrite something unreadable — a bad parse must not
             // become data loss on the next save.
@@ -84,10 +91,15 @@ public final class LibraryStore {
 
     // MARK: - Mutation
 
-    /// Returns how many were new. Duplicates are not an error — the same
-    /// photograph arriving from a second path is one photograph.
+    /// Returns how many were new to the library. Duplicates are not an error —
+    /// the same photograph arriving from a second path is one photograph, and it
+    /// still joins this collection.
+    ///
+    /// Always into a named collection: All Photos is the union of the
+    /// collections, so a photograph with no collection to go into is not added.
     @discardableResult
-    public func add(_ references: [PhotoReference], to collectionID: UUID?) -> Int {
+    public func add(_ references: [PhotoReference], to collectionID: UUID) -> Int {
+        guard document.collections.contains(where: { $0.id == collectionID }) else { return 0 }
         var added = 0
         for reference in references where document.insert(reference) { added += 1 }
         document.add(references.map(\.id), to: collectionID)
@@ -103,7 +115,7 @@ public final class LibraryStore {
     }
 
     public func removeCollection(_ id: UUID) {
-        document.removeCollection(id)
+        for photo in document.removeCollection(id) { resolver.forget(photo) }
         scheduleSave()
     }
 

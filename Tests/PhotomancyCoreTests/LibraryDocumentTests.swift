@@ -22,13 +22,14 @@ final class LibraryDocumentTests: XCTestCase {
         XCTAssertEqual(document.references.count, 1)
     }
 
+    /// The union of the collections, each photograph once however many hold it.
     func testAllPhotosIsEveryReferenceOnce() {
         var document = LibraryDocument()
         document.insert(reference("a"))
         document.insert(reference("b"))
         let one = document.addCollection(named: "One")
         let two = document.addCollection(named: "Two")
-        document.add([reference("a").id], to: one.id)
+        document.add([reference("a").id, reference("b").id], to: one.id)
         document.add([reference("a").id], to: two.id)
 
         XCTAssertEqual(document.allPhotos.count, 2)
@@ -104,15 +105,16 @@ final class LibraryDocumentTests: XCTestCase {
 
 extension LibraryDocumentTests {
 
-    /// Removing inside a collection takes the photograph out of that list only.
-    /// Removing in All Photos takes it out of the library. Same gesture, and the
-    /// difference is which view you are standing in.
-    func testRemovingFromACollectionKeepsThePhotographInTheLibrary() {
+    /// Removing inside a collection takes the photograph out of that list, and
+    /// out of the library only when no other collection holds it.
+    func testRemovingFromACollectionKeepsAPhotographAnotherCollectionHolds() {
         var document = LibraryDocument()
         document.insert(reference("a"))
         document.insert(reference("b"))
         let collection = document.addCollection(named: "Set")
+        let other = document.addCollection(named: "Other")
         document.add([reference("a").id, reference("b").id], to: collection.id)
+        document.add([reference("a").id], to: other.id)
 
         document.remove([reference("a").id], from: collection.id)
 
@@ -138,5 +140,65 @@ extension LibraryDocumentTests {
         document.insert(reference("a"))
         document.remove([reference("a").id], from: UUID())
         XCTAssertEqual(document.allPhotos.count, 1)
+    }
+
+    // MARK: - All Photos is the union of the collections
+
+    /// Deleting a collection takes what only it held; what another collection
+    /// holds stays.
+    func testDeletingACollectionRemovesOnlyThePhotographsNoOtherHolds() {
+        var document = LibraryDocument()
+        for seed in ["a", "b", "c"] { document.insert(reference(seed)) }
+        let doomed = document.addCollection(named: "Doomed")
+        let kept = document.addCollection(named: "Kept")
+        document.add([reference("a").id, reference("b").id], to: doomed.id)
+        document.add([reference("b").id, reference("c").id], to: kept.id)
+        document.updatePins([Pin(photo: reference("a").id, cell: 1), Pin(photo: reference("b").id, cell: 2)], for: nil)
+
+        let departed = document.removeCollection(doomed.id)
+
+        XCTAssertEqual(departed, [reference("a").id])
+        XCTAssertEqual(Set(document.allPhotos.map(\.displayName)), ["b.jpg", "c.jpg"])
+        XCTAssertEqual(document.pins(in: nil).map(\.photo), [reference("b").id])
+    }
+
+    func testAddingToACollectionThatDoesNotExistAddsNothing() {
+        var document = LibraryDocument()
+        document.insert(reference("a"))
+        document.add([reference("a").id], to: UUID())
+        XCTAssertTrue(document.collections.isEmpty)
+    }
+
+    /// A library written before the rule holds photographs imported straight
+    /// into All Photos. They are gathered, not lost.
+    func testPhotographsInNoCollectionAreGatheredIntoUnfiled() {
+        var document = LibraryDocument()
+        for seed in ["a", "b", "c"] { document.insert(reference(seed)) }
+        let set = document.addCollection(named: "Set")
+        document.add([reference("b").id], to: set.id)
+
+        XCTAssertEqual(document.gatherUnfiled(), 2)
+
+        let unfiled = document.collections.first { $0.name == "Unfiled" }
+        XCTAssertEqual(unfiled?.memberIDs, [reference("a").id, reference("c").id], "in library order")
+        XCTAssertEqual(document.gatherUnfiled(), 0, "nothing left to gather")
+        XCTAssertEqual(document.collections.count, 2)
+    }
+
+    func testGatheringAddsToAnExistingUnfiledRatherThanMakingASecond() {
+        var document = LibraryDocument()
+        for seed in ["a", "b"] { document.insert(reference(seed)) }
+        let unfiled = document.addCollection(named: "Unfiled")
+        document.add([reference("a").id], to: unfiled.id)
+
+        XCTAssertEqual(document.gatherUnfiled(), 1)
+        XCTAssertEqual(document.collections.count, 1)
+        XCTAssertEqual(document.collections[0].memberIDs, [reference("a").id, reference("b").id])
+    }
+
+    func testANewLibraryHasNothingToGather() {
+        var document = LibraryDocument()
+        XCTAssertEqual(document.gatherUnfiled(), 0)
+        XCTAssertTrue(document.collections.isEmpty)
     }
 }
