@@ -19,6 +19,9 @@ struct ShortcutLegend: View {
         ("⇧ Click", "Select everything from the last one to here"),
         ("⌥ Click", "Pin or unpin, in place"),
         ("Drag", "Move to a cell and pin it there"),
+        ("Double-click", "Open it in the lightbox"),
+        ("↩", "Open or close the lightbox"),
+        ("← →", "In the lightbox: the previous or next photograph"),
         ("⌫", "Remove the selected photograph from this collection"),
         ("⌘⌫", "Delete it from Photomancy"),
         ("⇧⌘R", "Rename the collection"),
@@ -26,7 +29,7 @@ struct ShortcutLegend: View {
         ("⇧⌘Z", "Step forward again"),
         ("⌘P", "Print"),
         ("?", "Show this"),
-        ("Esc", "Close this"),
+        ("Esc", "Close this, or the lightbox"),
     ]
 
     var body: some View {

@@ -190,6 +190,11 @@ poor relation.
   settles what a pin means: it holds a photograph across *rolls*, not at a fixed cell
   for ever, so a pin's cell follows its photograph. Empty cells that were already
   there stay put; only the gap the removal made is closed.
+- **The lightbox walks the sheet in cell order**, skipping empty cells. The sequence
+  on the sheet is the one being divined; collection order is import order and means
+  nothing here.
+- **`P` and the deletions work in the lightbox, on the photograph shown.** Same
+  gesture, same meaning, everywhere.
 - **Selection is model state, not focus.** A selected cell stays selected when the
   keyboard goes elsewhere. Tying the ring to `@FocusState` made it appear only while
   the mouse was down, which is not a selection — and Delete and the lightbox both act

@@ -62,10 +62,7 @@ struct SheetCell: View {
     /// exactly and the two positions coincide; only the odd ratio out now shows
     /// its dot against background, which is the cheaper price.
     private var pinMark: some View {
-        Circle()
-            .fill(.white)
-            .overlay(Circle().strokeBorder(.black, lineWidth: 1))
-            .frame(width: 10, height: 10)
+        PinMark()
     }
 
     private func load() async {
@@ -81,5 +78,16 @@ struct SheetCell: View {
             thumbnail = nil
             failure = error.localizedDescription
         }
+    }
+}
+
+/// The pin: a white dot with a thin black outline. One mark, one place, no
+/// variants — the sheet and the lightbox draw the same one.
+struct PinMark: View {
+    var body: some View {
+        Circle()
+            .fill(.white)
+            .overlay(Circle().strokeBorder(.black, lineWidth: 1))
+            .frame(width: 10, height: 10)
     }
 }

@@ -98,7 +98,11 @@ struct SheetView: View {
                     // the whole convention in one readable place.
                     .onTapGesture {
                         hasKeyboardFocus = true
-                        controller.click(cell: item.cell, modifiers: NSEvent.modifierFlags)
+                        controller.click(
+                            cell: item.cell,
+                            modifiers: NSEvent.modifierFlags,
+                            clickCount: NSApp.currentEvent?.clickCount ?? 1
+                        )
                     }
                     .gesture(dragGesture(cell: item.cell, photo: item.reference.id, cells: cells))
                 }
@@ -128,13 +132,32 @@ struct SheetView: View {
         .onKeyPress(.upArrow) { controller.moveSelection(byColumns: 0, rows: -1); return .handled }
         .onKeyPress(.downArrow) { controller.moveSelection(byColumns: 0, rows: 1); return .handled }
         .onKeyPress(.escape) {
-            guard controller.showingShortcuts else { return .ignored }
-            controller.showingShortcuts = false
+            if controller.showingShortcuts {
+                controller.showingShortcuts = false
+            } else if controller.showingLightbox {
+                controller.closeLightbox()
+            } else {
+                return .ignored
+            }
             return .handled
         }
         .overlay {
-            if controller.showingShortcuts {
-                ShortcutLegend { controller.showingShortcuts = false }
+            ZStack {
+                if let cell = controller.lightboxCell,
+                   let id = controller.arrangement.photograph(at: cell),
+                   let reference = controller.reference(for: id) {
+                    LightboxView(
+                        reference: reference,
+                        isPinned: controller.arrangement.isPinned(cell: cell),
+                        background: settings.background
+                    ) {
+                        hasKeyboardFocus = true
+                        controller.closeLightbox()
+                    }
+                }
+                if controller.showingShortcuts {
+                    ShortcutLegend { controller.showingShortcuts = false }
+                }
             }
         }
     }

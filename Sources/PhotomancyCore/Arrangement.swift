@@ -109,6 +109,20 @@ public struct Arrangement: Sendable, Equatable {
         pins.append(Pin(photo: photograph, cell: target))
     }
 
+    /// The next cell holding a photograph, `step` cells at a time from `cell` —
+    /// how the lightbox walks the sheet. Empty cells are passed over. `nil` at
+    /// either end: the walk stops rather than wrapping, so the end of the
+    /// sequence stays where it is.
+    public func filledCell(from cell: Int, step: Int) -> Int? {
+        guard step != 0 else { return nil }
+        var next = cell + step
+        while slots.indices.contains(next) {
+            if slots[next] != nil { return next }
+            next += step
+        }
+        return nil
+    }
+
     /// The sheet as it would be after `move(from:to:)` — what a drag shows while
     /// it is still over the sheet, before anything is committed.
     public func moving(from source: Int, to target: Int) -> Arrangement {

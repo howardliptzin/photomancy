@@ -266,4 +266,23 @@ final class ArrangementTests: XCTestCase {
             XCTAssertEqual(next.photograph(at: 2), dragged, "seed \(seed)")
         }
     }
+
+    // MARK: - Walking the sheet in the lightbox
+
+    func testTheLightboxWalkPassesOverEmptyCells() {
+        let ids = library(3).map(\.id)
+        let arrangement = Arrangement(slots: [ids[0], nil, nil, ids[1], nil, ids[2]])
+        XCTAssertEqual(arrangement.filledCell(from: 0, step: 1), 3)
+        XCTAssertEqual(arrangement.filledCell(from: 3, step: 1), 5)
+        XCTAssertEqual(arrangement.filledCell(from: 5, step: -1), 3)
+        XCTAssertEqual(arrangement.filledCell(from: 3, step: -1), 0)
+    }
+
+    /// The end of the sequence stays the end.
+    func testTheLightboxWalkStopsAtEitherEndRatherThanWrapping() {
+        let (arrangement, _) = sheet(3, cells: 5)
+        XCTAssertNil(arrangement.filledCell(from: 2, step: 1), "only empty cells after the last photograph")
+        XCTAssertNil(arrangement.filledCell(from: 0, step: -1))
+        XCTAssertNil(arrangement.filledCell(from: 1, step: 0))
+    }
 }

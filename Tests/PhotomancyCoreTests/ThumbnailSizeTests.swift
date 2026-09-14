@@ -13,7 +13,7 @@ final class ThumbnailSizeTests: XCTestCase {
     }
 
     func testClampsAboveTheLadder() {
-        XCTAssertEqual(ThumbnailSize.bucket(forPixels: 9000), 2048)
+        XCTAssertEqual(ThumbnailSize.bucket(forPixels: 9000), 5120)
     }
 
     func testNonPositiveSizesAreSafe() {

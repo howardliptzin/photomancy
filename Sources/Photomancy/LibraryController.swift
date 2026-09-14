@@ -18,6 +18,7 @@ final class LibraryController {
     /// `nil` is All Photos — the virtual collection, and the first-launch view.
     var selection: UUID? {
         didSet {
+            showingLightbox = false
             refreshCellAspect()
             // Undo does not cross collections: stepping back into a sheet you
             // are no longer looking at would be a surprise, not a rescue.
@@ -123,14 +124,18 @@ final class LibraryController {
 
     // MARK: - The loop
 
-    private var history = History(Step(arrangement: Arrangement(), label: "Open"))
+    private var history = History(Step(arrangement: Arrangement(), label: "Open")) {
+        didSet { settleLightbox() }
+    }
 
     /// The selected cells.
     ///
     /// Deliberately not tied to which view holds the keyboard. Selection is what
     /// Delete acts on, so it has to survive clicking elsewhere, and a ring that
     /// appears only while the mouse is down is not a selection.
-    var selectedCells: Set<Int> = []
+    var selectedCells: Set<Int> = [] {
+        didSet { settleLightbox() }
+    }
 
     /// Where a Shift-click measures from — the last cell chosen outright.
     private var selectionAnchor: Int?
@@ -148,9 +153,18 @@ final class LibraryController {
     /// everything from the anchor to here. Option is the odd one out — it pins
     /// the photograph you hit and leaves the selection alone, because it is
     /// direct manipulation of that frame rather than a change of what is chosen.
-    func click(cell: Int, modifiers: NSEvent.ModifierFlags) {
+    func click(cell: Int, modifiers: NSEvent.ModifierFlags, clickCount: Int = 1) {
         let flags = modifiers.intersection(.deviceIndependentFlagsMask)
 
+        // A double-click is read here, from the click itself, rather than as a
+        // second tap gesture. Stacking one would make SwiftUI hold every single
+        // click for the double-click interval before selecting, and the loop
+        // would lag at its most frequent gesture. The first click has already
+        // selected; the second opens what it selected.
+        if clickCount >= 2, flags.isDisjoint(with: [.command, .shift, .option]) {
+            openLightbox(at: cell)
+            return
+        }
         if flags.contains(.option) {
             togglePin(at: cell)
             return
@@ -196,6 +210,54 @@ final class LibraryController {
     /// The `?` overlay. Held here rather than in the view so the menu item and
     /// the key can be the same single route.
     var showingShortcuts = false
+
+    // MARK: - Lightbox
+
+    /// Whether the lightbox is up. What it shows is not stored: it is the
+    /// selected cell, so P, ⌫ and ⌘⌫ act on the photograph shown through the
+    /// same menu items as on the sheet, with no second route to drift.
+    var showingLightbox = false
+
+    /// The cell being shown, or `nil` when the lightbox is closed or its cell no
+    /// longer holds a photograph.
+    var lightboxCell: Int? {
+        guard showingLightbox, let cell = selectedCells.min(),
+              arrangement.photograph(at: cell) != nil else { return nil }
+        return cell
+    }
+
+    /// Double-click, or Return.
+    func openLightbox(at cell: Int) {
+        guard arrangement.photograph(at: cell) != nil else { return }
+        select(cell)
+        showingLightbox = true
+    }
+
+    func toggleLightbox() {
+        if lightboxCell != nil {
+            showingLightbox = false
+        } else if let cell = selectedCells.min() {
+            openLightbox(at: cell)
+        }
+    }
+
+    func closeLightbox() {
+        showingLightbox = false
+    }
+
+    /// Through the sheet in cell order, passing over empty cells and stopping at
+    /// either end. The sequence on the sheet is the one being divined.
+    func stepLightbox(_ step: Int) {
+        guard let cell = lightboxCell,
+              let next = arrangement.filledCell(from: cell, step: step) else { return }
+        select(next)
+    }
+
+    /// Closes the lightbox once its cell holds nothing — after a deletion, an
+    /// undo or a new grid — so it cannot spring open again on the next click.
+    private func settleLightbox() {
+        if showingLightbox, lightboxCell == nil { showingLightbox = false }
+    }
 
     /// Which collection is being renamed inline, if any. Held here so the
     /// sidebar row and the menu command are the same one route.
@@ -302,11 +364,20 @@ final class LibraryController {
         var next = arrangement
         next.removeClosingGaps(ids)
         refreshCellAspect()
-        stepping { commit(next, label: ids.count == 1 ? "Remove" : "Remove \(ids.count)", restoration: restoration) }
         // The sheet has closed up, so the cell you were on now holds whatever
-        // followed — which is where you would look next.
-        selectedCells = next.photograph(at: landing) != nil ? [landing] : []
+        // followed — which is where you would look next. In the lightbox,
+        // removing the last photograph on the sheet steps back to the one before
+        // rather than closing. Chosen before the commit, so the lightbox never
+        // sees a moment with nothing to show.
+        if next.photograph(at: landing) != nil {
+            selectedCells = [landing]
+        } else if showingLightbox, let previous = next.filledCell(from: landing, step: -1) {
+            selectedCells = [previous]
+        } else {
+            selectedCells = []
+        }
         selectionAnchor = selectedCells.first
+        stepping { commit(next, label: ids.count == 1 ? "Remove" : "Remove \(ids.count)", restoration: restoration) }
         persistPins()
     }
 
@@ -350,6 +421,11 @@ final class LibraryController {
     }
 
     func moveSelection(byColumns columns: Int, rows: Int) {
+        if showingLightbox {
+            // ← → walk the sheet; a sequence has no up or down.
+            if columns != 0 { stepLightbox(columns) }
+            return
+        }
         guard cellCount > 0 else { return }
         guard let current = selectedCells.min(), selectedCells.count == 1 else {
             // From nothing, or from a multiple selection, an arrow key settles

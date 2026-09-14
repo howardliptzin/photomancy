@@ -158,7 +158,10 @@ public enum ThumbnailDecoder {
 /// the cell size changes materially" — this is what materially means.
 public enum ThumbnailSize {
 
-    public static let ladder = [128, 192, 256, 384, 512, 768, 1024, 1536, 2048]
+    /// Up to 5120 because the lightbox decodes at window size, and a photograph
+    /// filling a 5K window is that long on its long edge. Stopping at 2048 left
+    /// the one view meant for looking closely quietly soft on a large display.
+    public static let ladder = [128, 192, 256, 384, 512, 768, 1024, 1536, 2048, 3072, 4096, 5120]
 
     public static func bucket(forPixels pixels: Int) -> Int {
         guard pixels > 0 else { return ladder[0] }
