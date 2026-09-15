@@ -11,6 +11,8 @@ Read it before writing code. Section numbers below refer to it.
 
 **M4 plan:** https://claude.ai/code/artifact/7031cc7e-46c0-4982-a1e3-8f8613890646
 
+**M5 plan:** https://claude.ai/artifact/V66mrd8m3FsydyaBuFop4Z
+
 **Status:** M1–M4 complete, merged to `main` and in daily use (M4 on 2026-09-15).
 Import and collections, bookmarks, the thumbnail cache, `layout()` and the sheet, the
 loop — randomize, select, pin, remove, undo — then drag to position, the lightbox, All
