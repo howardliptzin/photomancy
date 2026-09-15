@@ -25,11 +25,13 @@ remove, undo. From M4: drag a photograph onto a cell to move it there and pin it
 lightbox, which names the file under each photograph, because reviewing often means
 choosing between near-identical frames and the name is what tells them apart; and
 per-collection settings — columns, rows, gap, background and cell shape. All Photos is
-the union of the collections. Since M4: move a selection into another collection, new
-or existing, from the Edit menu, a right-click on a photograph, or by dragging onto the
-sidebar — found in use, when
-rolling one collection shows that some of it belongs somewhere else. Much of this came
-from using it.
+the union of the collections.
+
+Since M4: move a selection into another collection, new or existing — from the Edit
+menu, a right-click on a photograph, or by dragging onto the sidebar — for when rolling
+one collection shows that some of it belongs somewhere else.
+
+Much of this came from using it.
 
 Not built yet: printing and PDF.
 

@@ -16,10 +16,12 @@ Read it before writing code. Section numbers below refer to it.
 **Status:** M1–M4 complete, merged to `main` and in daily use (M4 on 2026-09-15).
 Import and collections, bookmarks, the thumbnail cache, `layout()` and the sheet, the
 loop — randomize, select, pin, remove, undo — then drag to position, the lightbox, All
-Photos as the union of the collections, and the settings bar. Using it reversed several
-settled decisions, which is why each milestone stops for real use before the next.
-**Next is M5: print and PDF.** Carried into it, still unbuilt: the relink flow for a
-photograph that has moved (§07), and deriving the memory cache limit from window area.
+Photos as the union of the collections, and the settings bar. After M4, found in use and
+merged the same day: moving photographs between collections, by menu and by dragging
+onto the sidebar. Using it reversed several settled decisions, which is why each
+milestone stops for real use before the next. **Next is M5: print and PDF.** Carried
+into it, still unbuilt: the relink flow for a photograph that has moved (§07), and
+deriving the memory cache limit from window area.
 
 ## What this is
 
@@ -187,10 +189,10 @@ poor relation.
 | `⌘⌫` | Delete selected from Photomancy — not undoable |
 | `⌃⌘N` | Move selected to a new collection — undoable |
 | Edit ▸ Move to ▸, or right-click | Move selected to a collection (Add to ▸ in All Photos) |
-| Drag onto the sidebar | Move to that collection — a new one on empty sidebar space |
 | Double-click | Lightbox |
 | `↩` | Open or close the lightbox |
 | Drag | Move to a cell and pin there |
+| Drag onto the sidebar | Move to that collection — a new one on empty sidebar space |
 | `←` `→` | In lightbox: move through photos |
 | `Esc` | Close lightbox |
 | `⌘Z` / `⇧⌘Z` | Step through arrangements |
@@ -309,26 +311,26 @@ poor relation.
   - **Dragging out of the sheet onto the sidebar is the pointer route.** Within the
     sheet a drag still moves one photograph to a cell. Carried onto a collection row it
     moves there — the whole selection if the drag started on a selected photograph,
-    otherwise just that one; onto empty sidebar space, which includes the New Collection
-    button, it goes into a new collection; onto All Photos or its own collection nothing
-    happens. **A carried selection is seen leaving together** — found in use: with the
-    rings hidden and only the dragged photograph moving, a drag of several read as
-    dropping the selection, though all of it went. So during a drag the rings travel
-    with their photographs, and once the pointer leaves the sheet everything carried
-    gathers into a small stack under it, with a count when there is more than one; back
-    over the sheet they return to their cells. The target row lights. **After a drop you
-    stay on the source sheet, as after the menu** — weighed in use on 2026-09-15.
-    Following the gesture to the destination felt natural, but opening a collection
-    clears the undo history, so the move would arrive un-undoable; staying keeps both
-    options, since following is one click on the row just dropped on; and splitting a
-    collection is usually several drops in a row. Revisit only if clicking the
-    destination after nearly every drop becomes the habit — and then for the menu too,
-    with undo made to survive the switch. The rule is `SidebarDrop.resolve` in Core. Targets
-    are measured through pass-through AppKit views (`DropZones`) at the moment a drag
-    asks — never a gesture on a row, and never cached, so scrolling or collapsing the
-    sidebar leaves nothing stale. The button has no zone of its own: a reader inside the
-    sidebar's bottom inset measures as the whole sidebar, which made every drop a new
-    collection.
+    otherwise just that one. Onto empty sidebar space, including the New Collection
+    button, it goes into a new collection; onto All Photos or its own collection,
+    nothing happens.
+  - **A carried selection is seen leaving together** — found in use: with the rings
+    hidden and only the dragged photograph moving, a drag of several read as dropping
+    the selection, though all of it went. So during a drag the rings travel with their
+    photographs, and once the pointer leaves the sheet everything carried gathers into a
+    small stack under it, with a count when there is more than one; back over the sheet
+    they return to their cells. The target row lights.
+  - **After a drop you stay on the source sheet, as after the menu** — weighed in use on
+    2026-09-15. Following the gesture felt natural, but opening a collection clears the
+    undo history, so the move would arrive un-undoable; following is one click on the
+    row just dropped on; and splitting a collection is usually several drops in a row.
+    Revisit only if clicking the destination after nearly every drop becomes the habit
+    — and then for the menu too, with undo made to survive the switch.
+  - **The drop rule is `SidebarDrop.resolve` in Core.** Targets are measured through
+    pass-through AppKit views (`DropZones`) when a drag asks — never a gesture on a row,
+    never cached, so scrolling or collapsing the sidebar leaves nothing stale. The New
+    Collection button has no zone: a reader inside the sidebar's bottom inset measures
+    as the whole sidebar, which once made every drop a new collection.
 - **At most ten removals stay reversible.** Ordinary steps are cheap — an arrangement
   is shared hashes — and stay 200 deep. A removal carries what it took away, so the
   stack is trimmed to the last ten of those, along with everything older, and undo

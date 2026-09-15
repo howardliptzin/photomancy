@@ -453,7 +453,7 @@ final class LibraryController {
     @ObservationIgnored let dropZones = DropZones()
 
     /// Where photographs dragged out of the sheet would go if dropped now. The
-    /// sidebar highlights it; the sheet dims what would leave.
+    /// sidebar highlights it; the sheet gathers what would leave under the pointer.
     var sidebarDrop: SidebarDrop?
 
     /// Dropped on the sidebar: the same moves the menus make, so undo and the
