@@ -316,7 +316,14 @@ poor relation.
     dropping the selection, though all of it went. So during a drag the rings travel
     with their photographs, and once the pointer leaves the sheet everything carried
     gathers into a small stack under it, with a count when there is more than one; back
-    over the sheet they return to their cells. The target row lights. The rule is `SidebarDrop.resolve` in Core. Targets
+    over the sheet they return to their cells. The target row lights. **After a drop you
+    stay on the source sheet, as after the menu** — weighed in use on 2026-09-15.
+    Following the gesture to the destination felt natural, but opening a collection
+    clears the undo history, so the move would arrive un-undoable; staying keeps both
+    options, since following is one click on the row just dropped on; and splitting a
+    collection is usually several drops in a row. Revisit only if clicking the
+    destination after nearly every drop becomes the habit — and then for the menu too,
+    with undo made to survive the switch. The rule is `SidebarDrop.resolve` in Core. Targets
     are measured through pass-through AppKit views (`DropZones`) at the moment a drag
     asks — never a gesture on a row, and never cached, so scrolling or collapsing the
     sidebar leaves nothing stale. The button has no zone of its own: a reader inside the
