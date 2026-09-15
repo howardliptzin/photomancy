@@ -31,6 +31,9 @@ struct SheetView: View {
         /// under the pointer, and the gesture must not follow that.
         let source: Int
         let photo: ContentHash
+        /// What leaves if the drag is dropped on the sidebar: the selection when
+        /// the drag started on it, otherwise just this photograph.
+        let carried: Set<ContentHash>
         var translation: CGSize = .zero
         var target: Int?
     }
@@ -45,6 +48,15 @@ struct SheetView: View {
     private var shown: Arrangement {
         guard let drag, let target = drag.target else { return controller.arrangement }
         return controller.arrangement.moving(from: drag.source, to: target)
+    }
+
+    /// Over a collection or New Collection in the sidebar: dropping now would
+    /// take the carried photographs off this sheet.
+    private var isLeaving: Bool {
+        switch controller.sidebarDrop {
+        case .collection, .newCollection: true
+        case .refused, nil: false
+        }
     }
 
     var body: some View {
@@ -74,10 +86,14 @@ struct SheetView: View {
                 // movement is how the eye registers what changed.
                 ForEach(placed(shown, in: cells.count), id: \.reference.id) { item in
                     let dragged = drag.flatMap { $0.photo == item.reference.id ? $0 : nil }
+                    let leaving = isLeaving && (drag?.carried.contains(item.reference.id) ?? false)
                     // The dragged photograph stays under the pointer; everything
-                    // else sits in the cell the preview gives it.
+                    // else sits in the cell the preview gives it. Over a target in
+                    // the sidebar it goes home with the rest of what would leave,
+                    // and they dim together — the sheet cannot draw over the
+                    // sidebar, so this is where the drop shows what it takes.
                     let home = dragged.map { cells[$0.source] } ?? cells[item.cell]
-                    let offset = dragged?.translation ?? .zero
+                    let offset = isLeaving ? .zero : dragged?.translation ?? .zero
 
                     SheetCell(
                         reference: item.reference,
@@ -86,7 +102,8 @@ struct SheetView: View {
                         isPinned: shown.isPinned(cell: item.cell)
                     )
                     .frame(width: cells[item.cell].width, height: cells[item.cell].height)
-                    .shadow(color: .black.opacity(dragged == nil ? 0 : 0.3), radius: 10, y: 4)
+                    .opacity(leaving ? 0.3 : 1)
+                    .shadow(color: .black.opacity(dragged == nil || isLeaving ? 0 : 0.3), radius: 10, y: 4)
                     .position(x: home.midX + offset.width, y: home.midY + offset.height)
                     // Following the pointer must never lag behind it, even when
                     // the cells around it are animating into the preview.
@@ -107,7 +124,7 @@ struct SheetView: View {
                             clickCount: NSApp.currentEvent?.clickCount ?? 1
                         )
                     }
-                    .gesture(dragGesture(cell: item.cell, photo: item.reference.id, cells: cells, gap: gap))
+                    .gesture(dragGesture(cell: item.cell, photo: item.reference.id, cells: cells, gap: gap, canvas: proxy.size))
                     .contextMenu { MoveMenu(controller: controller, cell: item.cell) }
                 }
 
@@ -175,12 +192,26 @@ struct SheetView: View {
     /// Drag a photograph onto any cell. It moves there and is pinned; the cells
     /// between shift one place. Dropped in the dead space beyond the block, or
     /// back where it started, it returns and nothing is recorded.
-    private func dragGesture(cell: Int, photo: ContentHash, cells: [CGRect], gap: Double) -> some Gesture {
+    ///
+    /// Carried out of the sheet and onto the sidebar, it is a different act: the
+    /// photograph — and the rest of the selection, if it was selected — moves to
+    /// the collection it is dropped on, or to a new one on empty sidebar space.
+    /// Within the sheet only ever the one photograph moves.
+    private func dragGesture(cell: Int, photo: ContentHash, cells: [CGRect], gap: Double, canvas: CGSize) -> some Gesture {
         DragGesture(minimumDistance: 4, coordinateSpace: .named(Self.space))
             .onChanged { value in
-                if drag == nil { drag = Drag(source: cell, photo: photo) }
+                if drag == nil {
+                    let carried = controller.cellsCarried(from: cell).compactMap { controller.arrangement.photograph(at: $0) }
+                    drag = Drag(source: cell, photo: photo, carried: Set(carried))
+                }
                 drag?.translation = value.translation
-                let target = PhotomancyCore.cell(at: value.location, in: cells, gap: gap)
+
+                let outbound = sidebarDrop(at: value.location, canvas: canvas)
+                if outbound != controller.sidebarDrop {
+                    controller.stepping { controller.sidebarDrop = outbound }
+                }
+                // Over the sidebar the sheet previews nothing of its own.
+                let target = outbound == nil ? PhotomancyCore.cell(at: value.location, in: cells, gap: gap) : nil
                 if target != drag?.target {
                     controller.stepping { drag?.target = target }
                 }
@@ -188,13 +219,28 @@ struct SheetView: View {
             .onEnded { _ in
                 guard let ended = drag else { return }
                 hasKeyboardFocus = true
+                let outbound = controller.sidebarDrop
                 controller.stepping {
                     drag = nil
-                    if let target = ended.target {
+                    controller.sidebarDrop = nil
+                    if let outbound {
+                        controller.drop(from: ended.source, on: outbound)
+                    } else if let target = ended.target {
                         controller.move(from: ended.source, to: target)
                     }
                 }
             }
+    }
+
+    /// Only asked once the pointer has left the sheet. The drag's own event
+    /// carries the pointer in window coordinates, which is what the sidebar's
+    /// targets are measured in.
+    private func sidebarDrop(at location: CGPoint, canvas: CGSize) -> SidebarDrop? {
+        guard !CGRect(origin: .zero, size: canvas).contains(location),
+              let event = NSApp.currentEvent,
+              let window = event.window ?? NSApp.keyWindow
+        else { return nil }
+        return controller.dropZones.drop(atWindowPoint: event.locationInWindow, in: window, source: controller.selection)
     }
 
     private func placed(_ arrangement: Arrangement, in cellCount: Int) -> [Placement] {

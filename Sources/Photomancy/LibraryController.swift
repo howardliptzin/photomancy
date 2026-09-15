@@ -434,11 +434,41 @@ final class LibraryController {
     /// to a collection and nothing is taken out.
     var moveMenuTitle: String { selection == nil ? "Add to" : "Move to" }
 
-    /// A right-click on a photograph outside the selection acts on that
-    /// photograph alone, as in Finder; inside it, on the whole selection.
-    func targetForContextMenu(cell: Int) {
+    /// A right-click or a drag that starts on a photograph outside the selection
+    /// acts on that photograph alone, as in Finder; inside it, on the whole
+    /// selection.
+    func target(from cell: Int) {
         guard !selectedCells.contains(cell) else { return }
         select(cell)
+    }
+
+    func cellsCarried(from cell: Int) -> Set<Int> {
+        selectedCells.contains(cell) ? selectedCells : [cell]
+    }
+
+    // MARK: - Dragging out of the sheet
+
+    /// Measures the sidebar's targets when a drag asks. Not observed: frames
+    /// change on every layout pass and nothing draws from them.
+    @ObservationIgnored let dropZones = DropZones()
+
+    /// Where photographs dragged out of the sheet would go if dropped now. The
+    /// sidebar highlights it; the sheet dims what would leave.
+    var sidebarDrop: SidebarDrop?
+
+    /// Dropped on the sidebar: the same moves the menus make, so undo and the
+    /// rules for pins are identical whichever route was taken.
+    func drop(from cell: Int, on drop: SidebarDrop) {
+        switch drop {
+        case .collection(let destination):
+            target(from: cell)
+            moveSelectedPhotographs(to: destination)
+        case .newCollection:
+            target(from: cell)
+            moveSelectedPhotographsToNewCollection()
+        case .refused:
+            break
+        }
     }
 
     /// Moves the selected photographs into another collection, out of this one.

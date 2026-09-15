@@ -35,6 +35,6 @@ struct MoveMenu: View {
     }
 
     private func target() {
-        if let cell { controller.targetForContextMenu(cell: cell) }
+        if let cell { controller.target(from: cell) }
     }
 }
