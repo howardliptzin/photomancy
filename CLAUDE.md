@@ -174,7 +174,7 @@ poor relation.
 
 | | |
 |---|---|
-| `Space` | Randomize — **also a toolbar button** |
+| `Space` | Randomize — **also a button in the control bar** |
 | Arrow keys | Move the selection between cells |
 | `P` | Pin/unpin the selected photo |
 | Click | Select a photo |
@@ -201,10 +201,13 @@ poor relation.
   baseline, which the menu bar needs anyway. Plus a `?` overlay over the sheet,
   dismissed with `Esc`, because the loop is a full-window activity and nobody is
   looking at the menu bar while they are in it.
-- **The settings bar: typed numbers, a colour well, the shape beside the title.**
-  Columns, rows and gap are whole-number fields, each with a stepper for the pointer;
-  background is an opaque colour well whose choice is converted into sRGB, never
-  reinterpreted; the tally sits at the right. Cell shape is a quiet menu beside the
+- **The control bar, left to right: grid, background, Randomize, tally.** Columns, rows
+  and gap are whole-number fields, each with a stepper for the pointer. Background is
+  three preset swatches — white, black, grey `#939292` — ringed when the sheet is on
+  one, then an opaque colour well for anything else, whose choice is converted into
+  sRGB, never reinterpreted. Then a **Randomize** button, the pointer route for
+  `Space`: it moved out of the toolbar because it belongs with what shapes the sheet,
+  and in the toolbar it was not where anyone looked. The tally sits at the right. Cell shape is a quiet menu beside the
   collection title, labelled **Auto** when the shape follows the photographs and naming
   what it resolved to — `Auto · 3:2`.
   The only limits are physical: no more gap, columns or rows than leave every cell at

@@ -131,6 +131,23 @@ public struct SheetColor: Sendable, Hashable {
     }
 }
 
+extension SheetColor {
+
+    /// A background one click away, named for its tooltip.
+    public struct Preset: Sendable, Hashable {
+        public let name: String
+        public let color: SheetColor
+    }
+
+    /// The backgrounds a sheet most often wants: white, black, and a mid grey.
+    /// Anything else is the colour well beside them.
+    public static let presets: [Preset] = [
+        Preset(name: "White", color: .white),
+        Preset(name: "Black", color: .black),
+        Preset(name: "Grey (#939292)", color: SheetColor(red: 0x93 / 255.0, green: 0x92 / 255.0, blue: 0x92 / 255.0)),
+    ]
+}
+
 extension SheetSettings {
     /// The stored string resolved to a colour, falling back to white when it is
     /// unreadable. A malformed hex must not be able to blank the sheet.

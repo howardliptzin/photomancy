@@ -108,18 +108,6 @@ struct ContentView: View {
             }
         }
         ToolbarItem(placement: .primaryAction) {
-            // Space is the gesture; this is the same action with a pointer
-            // route, so it is discoverable on the first run. Neither is the
-            // poor relation.
-            Button {
-                controller.randomize()
-            } label: {
-                Label("Randomize", systemImage: "die.face.5")
-            }
-            .help("Randomize the sheet (Space)")
-            .disabled(controller.photographs.isEmpty)
-        }
-        ToolbarItem(placement: .primaryAction) {
             Button {
                 controller.presentImportPanel()
             } label: {
