@@ -11,11 +11,12 @@ Read it before writing code. Section numbers below refer to it.
 
 **M4 plan:** https://claude.ai/code/artifact/7031cc7e-46c0-4982-a1e3-8f8613890646
 
-**Status:** M1–M3 complete and in daily use. Import and collections, bookmarks, the
+**Status:** M1–M4 complete and in daily use. Import and collections, bookmarks, the
 thumbnail cache, `layout()` and the sheet, and the loop — randomize, select, pin,
 remove, undo. Several settled decisions were reversed by using it; that is the point
-of stopping here. The week of use is done and M4 is under way on branches: drag to
-position, the lightbox, the All Photos rule, and the settings bar.
+of stopping here. The week of use is done and M4 is merged to `main` (2026-09-15): drag
+to position, the lightbox, the All Photos rule, and the settings bar. Next is M5:
+print and PDF.
 
 ## What this is
 
@@ -158,6 +159,12 @@ shaped by hand.
 All four are met. `Scripts/verify-relaunch.sh` is the standing regression for (2) and
 should be run after anything that touches import, the store, or the cache — it deletes
 the thumbnail cache before relaunching, which is the step that makes it mean anything.
+**It also deletes the app's whole library.** On a machine with real collections, copy
+the container's `Data` folder out with `ditto` first and put it back afterwards. The
+container's own `.com.apple.containermanagerd.metadata.plist` is protected by macOS —
+it can be neither copied nor deleted, and the script's `rm` of the container fails on
+it while still wiping `Data` — so `Data` is the unit to back up: it is everything the
+app owns.
 
 ## Interaction — settled
 
