@@ -180,4 +180,19 @@ final class SheetColorTests: XCTestCase {
         XCTAssertEqual(stored.red, stored.green, accuracy: 0.001)
         XCTAssertEqual(stored.green, stored.blue, accuracy: 0.001)
     }
+
+    // MARK: - Presets
+
+    func testThePresetsAreWhiteBlackAndGreyInThatOrder() {
+        XCTAssertEqual(SheetColor.presets.map(\.color.hex), ["#FFFFFF", "#000000", "#939292"])
+    }
+
+    /// The swatch rings when the stored background is that preset, so a colour
+    /// saved as hex and read back must still match it exactly.
+    func testAPresetSurvivesBeingStoredAsHex() {
+        for preset in SheetColor.presets {
+            XCTAssertEqual(SheetColor(hex: preset.color.hex), preset.color, preset.name)
+        }
+        XCTAssertEqual(SheetSettings().background, SheetColor.presets[0].color, "the default sheet is the white preset")
+    }
 }
