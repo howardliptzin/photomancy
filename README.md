@@ -22,7 +22,7 @@ Working: import and collections, security-scoped bookmarks, the two-tier thumbna
 cache, the layout function and the sheet, and the loop — randomize, select, pin,
 remove, undo. In daily use, which is where the last few rounds of changes came from.
 
-Built on the M4 branches: drag to reposition, and the lightbox — which names the file under each photograph, because reviewing often means choosing between near-identical frames and the name is what tells them apart. Not built: the settings interface, and printing.
+Built in M4: drag to reposition; the lightbox, which names the file under each photograph, because reviewing often means choosing between near-identical frames and the name is what tells them apart; and per-collection settings — columns, rows, gap, background and cell shape. All Photos is the union of the collections. Not built: printing.
 
 ## Building
 

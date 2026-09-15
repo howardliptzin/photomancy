@@ -58,7 +58,7 @@ shaped by hand.
   a majority it falls back to square. That fallback is not a consolation — a mixed
   orientation collection has no majority ratio, and square is the only shape where a
   photograph and its transpose occupy the same area, so the arithmetic lands exactly
-  where the minimax argument says it should. Options: derived, square, 3:2, 4:3.
+  where the minimax argument says it should. Options: Auto (derived), square, 3:2, 4:3.
 - **5 × 4 is a starting grid, not a constraint.** 8 × 8 at a 1 px gap and 3 × 2 at
   4 px are both ordinary uses. Never bound what can be played with on screen
   because of what it would cost on paper.
@@ -195,7 +195,7 @@ poor relation.
   Columns, rows and gap are whole-number fields, each with a stepper for the pointer;
   background is an opaque colour well whose choice is converted into sRGB, never
   reinterpreted; the tally sits at the right. Cell shape is a quiet menu beside the
-  collection title, and a derived shape names what it resolved to — `Derived · 3:2`.
+  collection title, labelled **Auto** when the shape follows the photographs, naming what it resolved to — `Auto · 3:2`.
   The only limits are physical: no more gap, columns or rows than leave every cell at
   least a point in the current window, because past that the sheet goes blank.
 - **Return opens and closes the lightbox** — the keyboard route the table lacked.

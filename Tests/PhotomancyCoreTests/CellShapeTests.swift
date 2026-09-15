@@ -115,7 +115,7 @@ final class CellShapeTests: XCTestCase {
 
     /// A derived shape says what it resolved to.
     func testTheMenuNamesADerivedShapeByWhatItResolvedTo() {
-        XCTAssertEqual(CellShape.derivedFromCollection.menuTitle(derivedAspect: 1.5), "Derived · 3:2")
+        XCTAssertEqual(CellShape.derivedFromCollection.menuTitle(derivedAspect: 1.5), "Auto · 3:2")
         XCTAssertEqual(CellShape.square.menuTitle(derivedAspect: 1.5), "Square")
     }
 }

@@ -72,14 +72,14 @@ public enum CellShape: String, Codable, Sendable, Hashable, CaseIterable {
 extension CellShape {
 
     /// How the cell-shape menu names this shape. A derived shape says what it
-    /// resolved to — "Derived · 3:2" — so a shape that re-derives on import is at
+    /// resolved to — "Auto · 3:2" — so a shape that re-derives on import is at
     /// least visible.
     public func menuTitle(derivedAspect: Double) -> String {
         switch self {
         case .square: "Square"
         case .threeByTwo: "3:2"
         case .fourByThree: "4:3"
-        case .derivedFromCollection: "Derived · \(CellShape.ratioName(derivedAspect))"
+        case .derivedFromCollection: "Auto · \(CellShape.ratioName(derivedAspect))"
         }
     }
 
