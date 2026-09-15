@@ -335,8 +335,13 @@ final class LibraryController {
     /// reaches a step that looks reversible and is not.
     private static let reversibleRemovals = 10
 
-    private func commit(_ arrangement: Arrangement, label: String, restoration: Restoration? = nil) {
-        history.commit(Step(arrangement: arrangement, label: label, restoration: restoration))
+    private func commit(
+        _ arrangement: Arrangement,
+        label: String,
+        restoration: Restoration? = nil,
+        transfer: Transfer? = nil
+    ) {
+        history.commit(Step(arrangement: arrangement, label: label, restoration: restoration, transfer: transfer))
         if restoration != nil {
             history.trimPast(toAtMost: Self.reversibleRemovals, matching: \.isRemoval)
         }
@@ -396,23 +401,10 @@ final class LibraryController {
         guard let restoration = store.removeFromCollection(ids, collectionID: collectionID)
         else { return }
 
-        let landing = selectedCells.min() ?? 0
         var next = arrangement
         next.removeClosingGaps(ids)
         refreshCellAspect()
-        // The sheet has closed up, so the cell you were on now holds whatever
-        // followed — which is where you would look next. In the lightbox,
-        // removing the last photograph on the sheet steps back to the one before
-        // rather than closing. Chosen before the commit, so the lightbox never
-        // sees a moment with nothing to show.
-        if next.photograph(at: landing) != nil {
-            selectedCells = [landing]
-        } else if showingLightbox, let previous = next.filledCell(from: landing, step: -1) {
-            selectedCells = [previous]
-        } else {
-            selectedCells = []
-        }
-        selectionAnchor = selectedCells.first
+        settleSelection(after: next)
         stepping { commit(next, label: ids.count == 1 ? "Remove" : "Remove \(ids.count)", restoration: restoration) }
         persistPins()
     }
@@ -431,12 +423,89 @@ final class LibraryController {
         rebuildArrangement(resettingHistory: true)
     }
 
+    // MARK: - Moving to another collection
+
+    /// Where the selection can go: every collection but the one on screen.
+    var moveDestinations: [PhotoCollection] {
+        store.document.collections.filter { $0.id != selection }
+    }
+
+    /// All Photos holds nothing of its own, so from there photographs are added
+    /// to a collection and nothing is taken out.
+    var moveMenuTitle: String { selection == nil ? "Add to" : "Move to" }
+
+    /// A right-click on a photograph outside the selection acts on that
+    /// photograph alone, as in Finder; inside it, on the whole selection.
+    func targetForContextMenu(cell: Int) {
+        guard !selectedCells.contains(cell) else { return }
+        select(cell)
+    }
+
+    /// Moves the selected photographs into another collection, out of this one.
+    ///
+    /// They join in sheet cell order, and the pinned ones stay pinned in the
+    /// destination's first free cells in that order, so a found sequence carries
+    /// across. Here the gap closes as it does for a removal. Undoable like a
+    /// removal, but not counted against the ten: nothing leaves the library, so
+    /// the step holds no reference.
+    func moveSelectedPhotographs(to destination: UUID) {
+        let cells = selectedCells.sorted().filter { arrangement.photograph(at: $0) != nil }
+        let photographs = cells.compactMap { arrangement.photograph(at: $0) }
+        guard !photographs.isEmpty else { return }
+        let pinned = Set(cells.filter { arrangement.isPinned(cell: $0) }.compactMap { arrangement.photograph(at: $0) })
+        guard let transfer = store.move(photographs, pinned: pinned, from: selection, to: destination)
+        else { return }
+
+        var next = arrangement
+        if transfer.removal != nil {
+            next.removeClosingGaps(Set(photographs))
+            settleSelection(after: next)
+        }
+        refreshCellAspect()
+        let verb = transfer.removal == nil ? "Add" : "Move"
+        let label = photographs.count == 1 ? verb : "\(verb) \(photographs.count)"
+        stepping { commit(next, label: label, transfer: transfer) }
+        persistPins()
+    }
+
+    /// ⌃⌘N. The person stays on this sheet — switching mid-roll would lose the
+    /// sheet they are working on — and the new collection waits in the sidebar
+    /// with its name ready to type.
+    func moveSelectedPhotographsToNewCollection() {
+        guard hasSelection else { return }
+        let collection = store.addCollection(named: "Collection \(store.document.collections.count + 1)")
+        moveSelectedPhotographs(to: collection.id)
+        renamingCollection = collection.id
+    }
+
+    /// After photographs leave the sheet and it closes up, the cell you were on
+    /// holds whatever followed — which is where you would look next. In the
+    /// lightbox, taking the last photograph on the sheet steps back to the one
+    /// before rather than closing. Chosen before the commit, so the lightbox
+    /// never sees a moment with nothing to show.
+    private func settleSelection(after next: Arrangement) {
+        let landing = selectedCells.min() ?? 0
+        if next.photograph(at: landing) != nil {
+            selectedCells = [landing]
+        } else if showingLightbox, let previous = next.filledCell(from: landing, step: -1) {
+            selectedCells = [previous]
+        } else {
+            selectedCells = []
+        }
+        selectionAnchor = selectedCells.first
+    }
+
     func undo() {
         var undone: Step?
         stepping { undone = history.undo() }
         guard let undone else { return }
         if let restoration = undone.restoration {
             store.restore(restoration)
+            refreshCellAspect()
+        }
+        if let transfer = undone.transfer {
+            // A collection the move created stays in the sidebar, empty.
+            store.reverse(transfer)
             refreshCellAspect()
         }
         persistPins()
@@ -450,6 +519,15 @@ final class LibraryController {
             store.removeFromCollection(
                 Set(restoration.memberships.map(\.photo)),
                 collectionID: restoration.collection
+            )
+            refreshCellAspect()
+        }
+        if let transfer = redone.transfer {
+            store.move(
+                transfer.photographs,
+                pinned: Set(transfer.pinned),
+                from: transfer.source,
+                to: transfer.destination
             )
             refreshCellAspect()
         }

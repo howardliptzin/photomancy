@@ -108,6 +108,7 @@ struct SheetView: View {
                         )
                     }
                     .gesture(dragGesture(cell: item.cell, photo: item.reference.id, cells: cells, gap: gap))
+                    .contextMenu { MoveMenu(controller: controller, cell: item.cell) }
                 }
 
                 // Shown whenever something is selected, not only while this

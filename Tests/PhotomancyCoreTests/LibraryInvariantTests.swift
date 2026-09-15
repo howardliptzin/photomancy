@@ -22,14 +22,15 @@ final class LibraryInvariantTests: XCTestCase {
         for seed in UInt64(1)...25 {
             var rng = SeededGenerator(seed: seed)
             var document = LibraryDocument()
-            // Removal steps, as the app's history holds them. Deleting a
+            // Removal and move steps, as the app's history holds them. Deleting a
             // collection or deleting from the library is not undoable and clears
             // them, exactly as the app does.
-            var undo: [Restoration] = []
-            var redo: [Restoration] = []
+            enum Change { case removal(Restoration), move(Transfer) }
+            var undo: [Change] = []
+            var redo: [Change] = []
 
             for step in 0..<400 {
-                let action = Int.random(in: 0..<8, using: &rng)
+                let action = Int.random(in: 0..<9, using: &rng)
                 let collections = document.collections.map(\.id)
 
                 switch action {
@@ -49,21 +50,47 @@ final class LibraryInvariantTests: XCTestCase {
                     let count = Int.random(in: 1...3, using: &rng)
                     let ids = Set(collection.memberIDs.shuffled(using: &rng).prefix(count))
                     if let restoration = document.removeFromCollection(ids, collectionID: collection.id) {
-                        undo.append(restoration)
+                        undo.append(.removal(restoration))
                         redo.removeAll()
                     }
                 case 4:
-                    guard let restoration = undo.popLast() else { break }
-                    document.restore(restoration)
-                    redo.append(restoration)
+                    guard let change = undo.popLast() else { break }
+                    switch change {
+                    case .removal(let restoration): document.restore(restoration)
+                    case .move(let transfer): document.reverse(transfer)
+                    }
+                    redo.append(change)
                 case 5:
-                    // As the app redoes: remove again, keep the original step.
-                    guard let restoration = redo.popLast() else { break }
-                    _ = document.removeFromCollection(
-                        Set(restoration.memberships.map(\.photo)),
-                        collectionID: restoration.collection
-                    )
-                    undo.append(restoration)
+                    // As the app redoes: do it again, keep the original step.
+                    guard let change = redo.popLast() else { break }
+                    switch change {
+                    case .removal(let restoration):
+                        _ = document.removeFromCollection(
+                            Set(restoration.memberships.map(\.photo)),
+                            collectionID: restoration.collection
+                        )
+                    case .move(let transfer):
+                        _ = document.move(
+                            transfer.photographs,
+                            pinned: Set(transfer.pinned),
+                            from: transfer.source,
+                            to: transfer.destination
+                        )
+                    }
+                    undo.append(change)
+                case 8 where !collections.isEmpty:
+                    // A move, from a collection or from All Photos, to any
+                    // collection — including a fresh, empty one.
+                    let source: UUID? = Bool.random(using: &rng) ? collections.randomElement(using: &rng) : nil
+                    let destination = collections.randomElement(using: &rng)!
+                    let candidates = source.flatMap { id in document.collections.first { $0.id == id }?.memberIDs }
+                        ?? document.references.map(\.id)
+                    let photographs = Array(candidates.shuffled(using: &rng).prefix(Int.random(in: 1...4, using: &rng)))
+                    let pinned = Set(photographs.filter { _ in Bool.random(using: &rng) })
+                    if let transfer = document.move(photographs, pinned: pinned, from: source, to: destination) {
+                        undo.append(.move(transfer))
+                        redo.removeAll()
+                    }
                 case 6 where !collections.isEmpty:
                     document.removeCollection(collections.randomElement(using: &rng)!)
                     undo.removeAll()

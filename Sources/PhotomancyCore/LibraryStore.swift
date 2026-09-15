@@ -144,6 +144,23 @@ public final class LibraryStore {
         scheduleSave()
     }
 
+    @discardableResult
+    public func move(
+        _ photographs: [ContentHash],
+        pinned: Set<ContentHash>,
+        from source: UUID?,
+        to destination: UUID
+    ) -> Transfer? {
+        let transfer = document.move(photographs, pinned: pinned, from: source, to: destination)
+        if transfer != nil { scheduleSave() }
+        return transfer
+    }
+
+    public func reverse(_ transfer: Transfer) {
+        document.reverse(transfer)
+        scheduleSave()
+    }
+
     public func remove(_ ids: Set<ContentHash>, from collectionID: UUID?) {
         if collectionID == nil {
             for id in ids { resolver.forget(id) }

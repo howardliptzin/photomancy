@@ -24,6 +24,7 @@ struct ShortcutLegend: View {
         ("← →", "In the lightbox: the previous or next photograph"),
         ("⌫", "Remove the selected photograph from this collection"),
         ("⌘⌫", "Delete it from Photomancy"),
+        ("⌃⌘N", "Move the selection to a new collection"),
         ("⇧⌘R", "Rename the collection"),
         ("⌘Z", "Step back through arrangements"),
         ("⇧⌘Z", "Step forward again"),
