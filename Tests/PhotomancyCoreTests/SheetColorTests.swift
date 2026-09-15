@@ -195,4 +195,13 @@ final class SheetColorTests: XCTestCase {
         }
         XCTAssertEqual(SheetSettings().background, SheetColor.presets[0].color, "the default sheet is the white preset")
     }
+
+    /// Exactly one of the four rings: a preset's swatch, or the colour wheel.
+    func testEachPresetMatchesItselfAndAnythingElseIsCustom() {
+        for preset in SheetColor.presets {
+            XCTAssertEqual(SheetColor(hex: preset.color.hex)?.matchingPreset, preset)
+        }
+        XCTAssertNil(SheetColor(hex: "#123456")?.matchingPreset)
+        XCTAssertNil(SheetColor(hex: "#939293")?.matchingPreset, "one step off grey is a custom colour")
+    }
 }
