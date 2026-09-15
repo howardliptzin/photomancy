@@ -146,6 +146,12 @@ extension SheetColor {
         Preset(name: "Black", color: .black),
         Preset(name: "Grey (#939292)", color: SheetColor(red: 0x93 / 255.0, green: 0x92 / 255.0, blue: 0x92 / 255.0)),
     ]
+
+    /// The preset this colour is, if any — which swatch rings. `nil` is a custom
+    /// colour, and rings the colour wheel instead.
+    public var matchingPreset: Preset? {
+        SheetColor.presets.first { $0.color == self }
+    }
 }
 
 extension SheetSettings {

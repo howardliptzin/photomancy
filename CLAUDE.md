@@ -204,8 +204,10 @@ poor relation.
 - **The control bar, left to right: grid, background, Randomize, tally.** Columns, rows
   and gap are whole-number fields, each with a stepper for the pointer. Background is
   three preset swatches — white, black, grey `#939292` — ringed when the sheet is on
-  one, then an opaque colour well for anything else, whose choice is converted into
-  sRGB, never reinterpreted. Then a **Randomize** button, the pointer route for
+  one, then a colour wheel for anything else. The wheel opens the Colors window, rings
+  when the background is custom and shows that colour in its centre; a pick is
+  converted into sRGB, never reinterpreted, and opaque. The system colour well was
+  dropped: on a white bar it was an empty white capsule and did not read as a control. Then a **Randomize** button, the pointer route for
   `Space`: it moved out of the toolbar because it belongs with what shapes the sheet,
   and in the toolbar it was not where anyone looked. The tally sits at the right. Cell shape is a quiet menu beside the
   collection title, labelled **Auto** when the shape follows the photographs and naming

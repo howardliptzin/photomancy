@@ -25,18 +25,16 @@ struct SheetControls: View {
 
             HStack(spacing: 6) {
                 label("Background")
-                // The common three, one click each, then the well for anything
-                // else. The ring says which preset the sheet is on; a custom
-                // colour rings none, and the well shows it.
+                // The common three, one click each, then the colour wheel for
+                // anything else. One ring for the row: on a preset's swatch, or on
+                // the wheel when the colour is custom.
                 HStack(spacing: 4) {
                     ForEach(SheetColor.presets, id: \.self) { preset in
                         swatch(preset)
                     }
                 }
                 Divider().frame(height: 14)
-                // Opaque only: paper has no transparency.
-                ColorPicker("Background", selection: background, supportsOpacity: false)
-                    .labelsHidden()
+                colorWheel
             }
 
             // Space is the gesture; this is the same action for the pointer, in
@@ -83,21 +81,17 @@ struct SheetControls: View {
     }
 
     private func swatch(_ preset: SheetColor.Preset) -> some View {
-        let selected = controller.background == preset.color
+        let selected = controller.background.matchingPreset == preset
         return Button {
             controller.background = preset.color
         } label: {
-            RoundedRectangle(cornerRadius: 3)
-                .fill(Color(preset.color))
-                // A hairline, so white still reads against a pale bar.
-                .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(Color.primary.opacity(0.25), lineWidth: 0.5))
-                .frame(width: 15, height: 15)
-                .padding(2)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 5)
-                        .strokeBorder(selected ? Color.accentColor : .clear, lineWidth: 1.5)
-                )
-                .contentShape(Rectangle())
+            ringed(selected) {
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(Color(preset.color))
+                    // A hairline, so white still reads against a pale bar.
+                    .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(Color.primary.opacity(0.25), lineWidth: 0.5))
+                    .frame(width: 15, height: 15)
+            }
         }
         .buttonStyle(.plain)
         .help(preset.name)
@@ -105,19 +99,48 @@ struct SheetControls: View {
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
-    private var gap: Binding<Int> {
-        Binding(get: { Int(controller.gap) }, set: { controller.gap = Double($0) })
+    /// The colour wheel — the Mac's own sign for "any colour". Opens the Colors
+    /// window. Ringed when the background is none of the presets, and then shows
+    /// that colour in its centre, so a custom colour is visible at a glance.
+    private var colorWheel: some View {
+        let controller = self.controller
+        let background = controller.background
+        let custom = background.matchingPreset == nil
+        return Button {
+            ColorPanel.shared.open(with: background) { controller.background = $0 }
+        } label: {
+            ringed(custom) {
+                ZStack {
+                    Circle().strokeBorder(
+                        AngularGradient(colors: [.red, .yellow, .green, .cyan, .blue, .purple, .red], center: .center),
+                        lineWidth: 3.5
+                    )
+                    if custom {
+                        Circle().fill(Color(background)).padding(4)
+                    }
+                }
+                .frame(width: 15, height: 15)
+            }
+        }
+        .buttonStyle(.plain)
+        .help("Any colour…")
+        .accessibilityLabel("Custom background colour")
+        .accessibilityAddTraits(custom ? .isSelected : [])
     }
 
-    private var background: Binding<Color> {
-        Binding(
-            get: { Color(controller.background) },
-            set: { picked in
-                if let converted = SheetColor(convertingToSRGB: NSColor(picked).cgColor) {
-                    controller.background = converted
-                }
-            }
-        )
+    /// The one selection mark for the whole background row.
+    private func ringed<Content: View>(_ selected: Bool, @ViewBuilder _ content: () -> Content) -> some View {
+        content()
+            .padding(2)
+            .overlay(
+                RoundedRectangle(cornerRadius: 5)
+                    .strokeBorder(selected ? Color.accentColor : .clear, lineWidth: 1.5)
+            )
+            .contentShape(Rectangle())
+    }
+
+    private var gap: Binding<Int> {
+        Binding(get: { Int(controller.gap) }, set: { controller.gap = Double($0) })
     }
 
     /// Says plainly when a roll will be sampling from a bigger pool, and when
