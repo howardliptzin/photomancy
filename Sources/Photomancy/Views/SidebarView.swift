@@ -57,6 +57,18 @@ struct SidebarView: View {
                 }
             }
         }
+        // The list's own menu and double-click, not gestures on the rows. A tap
+        // gesture on a row — even a simultaneous one — swallows the click the
+        // list selects with, and the sidebar stops changing collections.
+        .contextMenu(forSelectionType: Row.self) { rows in
+            if let id = collectionID(in: rows) {
+                Button("Rename") { controller.renamingCollection = id }
+                Button("Delete Collection", role: .destructive) { controller.deleteCollection(id) }
+            }
+        } primaryAction: { rows in
+            // Double-click a collection to rename it, as in Finder.
+            if let id = collectionID(in: rows) { controller.renamingCollection = id }
+        }
         .onChange(of: renameFieldFocused) { _, focused in
             controller.isEditingText = focused
             if !focused { controller.renamingCollection = nil }
@@ -94,19 +106,14 @@ struct SidebarView: View {
         } else {
             Label(collection.name, systemImage: "rectangle.stack")
                 .badge(collection.memberIDs.count)
-                // Double-click the name to rename it, as in Finder. Simultaneous,
-                // so the list's own single-click selection is never held back
-                // waiting to see whether a second click follows.
-                .simultaneousGesture(TapGesture(count: 2).onEnded {
-                    controller.renamingCollection = collection.id
-                })
-                .contextMenu {
-                    Button("Rename") { controller.renamingCollection = collection.id }
-                    Button("Delete Collection", role: .destructive) {
-                        controller.deleteCollection(collection.id)
-                    }
-                }
         }
+    }
+
+    /// A single collection, or `nil` — All Photos has no name to change and
+    /// cannot be deleted.
+    private func collectionID(in rows: Set<Row>) -> UUID? {
+        guard rows.count == 1, case .collection(let id)? = rows.first else { return nil }
+        return id
     }
 
     /// Writes straight through to the store, so a rename is saved as it is typed
