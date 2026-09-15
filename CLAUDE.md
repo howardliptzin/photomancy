@@ -311,9 +311,12 @@ poor relation.
     moves there — the whole selection if the drag started on a selected photograph,
     otherwise just that one; onto empty sidebar space, which includes the New Collection
     button, it goes into a new collection; onto All Photos or its own collection nothing
-    happens. While it is over a target the row lights and the photographs that would
-    leave dim: the sheet cannot draw over the sidebar, a separate hosting view, so no
-    image follows the pointer there. The rule is `SidebarDrop.resolve` in Core. Targets
+    happens. **A carried selection is seen leaving together** — found in use: with the
+    rings hidden and only the dragged photograph moving, a drag of several read as
+    dropping the selection, though all of it went. So during a drag the rings travel
+    with their photographs, and once the pointer leaves the sheet everything carried
+    gathers into a small stack under it, with a count when there is more than one; back
+    over the sheet they return to their cells. The target row lights. The rule is `SidebarDrop.resolve` in Core. Targets
     are measured through pass-through AppKit views (`DropZones`) at the moment a drag
     asks — never a gesture on a row, and never cached, so scrolling or collapsing the
     sidebar leaves nothing stale. The button has no zone of its own: a reader inside the
