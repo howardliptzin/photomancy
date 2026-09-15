@@ -69,6 +69,68 @@ public struct Arrangement: Sendable, Equatable {
         }
     }
 
+    /// Moves the photograph in one cell to another and pins it there — the drag.
+    ///
+    /// Onto an occupied cell it is a move within the sheet's order: the
+    /// photograph comes out of its cell, the gap closes, and it goes back in at
+    /// the target. Everything between the two cells shifts one place towards the
+    /// cell it left — to the right when dragged back, to the left when dragged
+    /// forward. Nothing leaves the sheet, and no cell becomes empty that was not
+    /// empty already. It is a removal and an insertion composed, so it follows
+    /// the removal rule for pins: a pin's cell follows its photograph.
+    ///
+    /// Onto an empty cell there is nothing to make room for, so the photograph is
+    /// simply placed there and the cell it left is empty.
+    ///
+    /// Dropping it back where it started is a cancelled drag, not a pin.
+    public mutating func move(from source: Int, to target: Int) {
+        guard source != target,
+              slots.indices.contains(source), slots.indices.contains(target),
+              let photograph = slots[source]
+        else { return }
+
+        if slots[target] == nil {
+            slots[target] = photograph
+            slots[source] = nil
+        } else {
+            slots.remove(at: source)
+            slots.insert(photograph, at: target)
+        }
+
+        var cellOf: [ContentHash: Int] = [:]
+        for (cell, slot) in slots.enumerated() { if let slot { cellOf[slot] = cell } }
+        pins = pins.map { pin in
+            cellOf[pin.photo].map { Pin(photo: pin.photo, cell: $0) } ?? pin
+        }
+
+        // Putting a photograph somewhere is deciding where it goes, so it is
+        // held there.
+        pins.removeAll { $0.photo == photograph || $0.cell == target }
+        pins.append(Pin(photo: photograph, cell: target))
+    }
+
+    /// The next cell holding a photograph, `step` cells at a time from `cell` —
+    /// how the lightbox walks the sheet. Empty cells are passed over. `nil` at
+    /// either end: the walk stops rather than wrapping, so the end of the
+    /// sequence stays where it is.
+    public func filledCell(from cell: Int, step: Int) -> Int? {
+        guard step != 0 else { return nil }
+        var next = cell + step
+        while slots.indices.contains(next) {
+            if slots[next] != nil { return next }
+            next += step
+        }
+        return nil
+    }
+
+    /// The sheet as it would be after `move(from:to:)` — what a drag shows while
+    /// it is still over the sheet, before anything is committed.
+    public func moving(from source: Int, to target: Int) -> Arrangement {
+        var copy = self
+        copy.move(from: source, to: target)
+        return copy
+    }
+
     public mutating func setPinned(_ pinned: Bool, at cell: Int) {
         guard let photograph = photograph(at: cell) else { return }
         if pinned {

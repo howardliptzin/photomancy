@@ -37,12 +37,47 @@ final class RestorationTests: XCTestCase {
         XCTAssertEqual(document.photos(in: collection).map(\.displayName), ["a.jpg", "c.jpg"])
     }
 
-    /// The reference itself is untouched — that is what makes this the cheap,
-    /// reversible deletion.
-    func testTheReferenceStaysInTheLibrary() throws {
+    /// Still in another collection, so still in All Photos.
+    func testAPhotographInAnotherCollectionStaysInTheLibrary() throws {
         var (document, collection) = library(["a", "b"])
-        _ = document.removeFromCollection([reference("a").id], collectionID: collection)
+        let other = document.addCollection(named: "Other")
+        document.add([reference("a").id], to: other.id)
+
+        let restoration = try XCTUnwrap(document.removeFromCollection([reference("a").id], collectionID: collection))
+
         XCTAssertEqual(document.allPhotos.count, 2)
+        XCTAssertTrue(restoration.departures.isEmpty)
+    }
+
+    /// All Photos is the union of the collections.
+    func testAPhotographLeavingItsLastCollectionLeavesTheLibrary() throws {
+        var (document, collection) = library(["a", "b"])
+        let restoration = try XCTUnwrap(document.removeFromCollection([reference("a").id], collectionID: collection))
+
+        XCTAssertEqual(document.allPhotos.map(\.displayName), ["b.jpg"])
+        XCTAssertEqual(restoration.departures.map(\.reference.id), [reference("a").id])
+    }
+
+    /// Undo still reaches it: back into the library where it sat, with its All
+    /// Photos pins, and back into the collection.
+    func testUndoPutsADepartedPhotographBackWhereItWas() throws {
+        var (document, collection) = library(["a", "b", "c"])
+        document.updatePins([Pin(photo: reference("b").id, cell: 6)], for: nil)
+        let before = document
+
+        let restoration = try XCTUnwrap(document.removeFromCollection([reference("b").id], collectionID: collection))
+        XCTAssertTrue(document.pins(in: nil).isEmpty)
+        document.restore(restoration)
+
+        XCTAssertEqual(document, before)
+    }
+
+    func testRestoringADepartureTwiceDoesNotDuplicateIt() throws {
+        var (document, collection) = library(["a", "b"])
+        let restoration = try XCTUnwrap(document.removeFromCollection([reference("a").id], collectionID: collection))
+        document.restore(restoration)
+        document.restore(restoration)
+        XCTAssertEqual(document.allPhotos.map(\.displayName), ["a.jpg", "b.jpg"])
     }
 
     /// Membership is ordered, so putting it back at the end would be a different

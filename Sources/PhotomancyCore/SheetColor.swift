@@ -30,6 +30,21 @@ public struct SheetColor: Sendable, Hashable {
         self.alpha = clamp(alpha)
     }
 
+    /// A colour from any colour space, converted into sRGB rather than
+    /// reinterpreted.
+    ///
+    /// The system colour panel hands back colours in whatever space was picked —
+    /// Display P3 among them. Reading those components as if they were sRGB
+    /// would store, show and print a different colour from the one chosen.
+    /// Always opaque: paper has no transparency. `nil` if it cannot be converted.
+    public init?(convertingToSRGB color: CGColor) {
+        guard let space = CGColorSpace(name: CGColorSpace.sRGB),
+              let converted = color.converted(to: space, intent: .relativeColorimetric, options: nil),
+              let components = converted.components, components.count >= 3
+        else { return nil }
+        self.init(red: Double(components[0]), green: Double(components[1]), blue: Double(components[2]))
+    }
+
     public static let white = SheetColor(red: 1, green: 1, blue: 1)
     public static let black = SheetColor(red: 0, green: 0, blue: 0)
 
@@ -102,6 +117,13 @@ public struct SheetColor: Sendable, Hashable {
     /// light one. A cell with no photograph at all draws nothing instead.
     public var placeholderTint: SheetColor {
         blended(toward: contrastingInk, amount: 0.07)
+    }
+
+    /// Quiet text drawn on the background itself — the filename under a
+    /// photograph in the lightbox. Derived from the background so it reads on a
+    /// white sheet and a black one alike, without competing with the photograph.
+    public var captionInk: SheetColor {
+        blended(toward: contrastingInk, amount: 0.55)
     }
 
     public var cgColor: CGColor {

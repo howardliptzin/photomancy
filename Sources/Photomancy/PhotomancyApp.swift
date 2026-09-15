@@ -76,6 +76,14 @@ struct PhotomancyApp: App {
                         !LibraryController.shared.hasSelection
                             || LibraryController.shared.isEditingText
                     )
+                Button(LibraryController.shared.showingLightbox ? "Close Lightbox" : "Open in Lightbox") {
+                    LibraryController.shared.toggleLightbox()
+                }
+                .keyboardShortcut(.return, modifiers: [])
+                .disabled(
+                    !LibraryController.shared.hasSelection
+                        || LibraryController.shared.isEditingText
+                )
                 Divider()
                 Button("Reset") { LibraryController.shared.reset() }
                     .keyboardShortcut("r", modifiers: .command)

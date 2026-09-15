@@ -84,13 +84,15 @@ public final class LibraryStore {
 
     // MARK: - Mutation
 
-    /// Returns how many were new. Duplicates are not an error — the same
-    /// photograph arriving from a second path is one photograph.
+    /// Returns how many were new to the library. Duplicates are not an error —
+    /// the same photograph arriving from a second path is one photograph, and it
+    /// still joins this collection.
+    ///
+    /// Always into a named collection: All Photos is the union of the
+    /// collections, so a photograph with no collection to go into is not added.
     @discardableResult
-    public func add(_ references: [PhotoReference], to collectionID: UUID?) -> Int {
-        var added = 0
-        for reference in references where document.insert(reference) { added += 1 }
-        document.add(references.map(\.id), to: collectionID)
+    public func add(_ references: [PhotoReference], to collectionID: UUID) -> Int {
+        let added = document.add(references, to: collectionID)
         scheduleSave()
         return added
     }
@@ -103,7 +105,7 @@ public final class LibraryStore {
     }
 
     public func removeCollection(_ id: UUID) {
-        document.removeCollection(id)
+        for photo in document.removeCollection(id) { resolver.forget(photo) }
         scheduleSave()
     }
 
@@ -126,8 +128,7 @@ public final class LibraryStore {
     }
 
     public func rename(_ id: UUID, to name: String) {
-        guard let offset = document.collections.firstIndex(where: { $0.id == id }) else { return }
-        document.collections[offset].name = name
+        document.renameCollection(id, to: name)
         scheduleSave()
     }
 

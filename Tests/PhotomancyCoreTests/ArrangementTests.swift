@@ -177,4 +177,112 @@ final class ArrangementTests: XCTestCase {
         XCTAssertEqual(roll(library(30), cells: 20, seed: 42).slots,
                        roll(library(30), cells: 20, seed: 42).slots)
     }
+
+    // MARK: - Dragging to a cell
+
+    private func sheet(_ count: Int, cells: Int? = nil, pins: [Pin] = []) -> (Arrangement, [ContentHash]) {
+        let ids = library(count).map(\.id)
+        let slots: [ContentHash?] = ids + Array(repeating: nil, count: max(0, (cells ?? count) - count))
+        return (Arrangement(slots: slots, pins: pins), ids)
+    }
+
+    func testDraggingBackShiftsTheCellsBetweenOnePlaceRight() {
+        var (arrangement, id) = sheet(6)
+        arrangement.move(from: 4, to: 1)
+        XCTAssertEqual(arrangement.slots, [id[0], id[4], id[1], id[2], id[3], id[5]])
+    }
+
+    func testDraggingForwardShiftsTheCellsBetweenOnePlaceLeft() {
+        var (arrangement, id) = sheet(6)
+        arrangement.move(from: 1, to: 4)
+        XCTAssertEqual(arrangement.slots, [id[0], id[2], id[3], id[4], id[1], id[5]])
+    }
+
+    func testTheDroppedPhotographIsPinnedWhereItLands() {
+        var (arrangement, id) = sheet(6)
+        arrangement.move(from: 4, to: 1)
+        XCTAssertTrue(arrangement.isPinned(cell: 1))
+        XCTAssertEqual(arrangement.pins, [Pin(photo: id[4], cell: 1)])
+    }
+
+    /// Nothing leaves the sheet and nothing is duplicated.
+    func testAMoveKeepsEveryPhotographExactlyOnce() {
+        var (arrangement, _) = sheet(12)
+        let before = arrangement.slots
+        arrangement.move(from: 11, to: 0)
+        XCTAssertEqual(Set(arrangement.slots.compactMap { $0 }), Set(before.compactMap { $0 }))
+        XCTAssertEqual(arrangement.slots.count, before.count)
+    }
+
+    /// The removal rule: a pin holds a photograph, so its cell follows it.
+    func testPinsInTheShiftedRunFollowTheirPhotographs() {
+        let ids = library(6).map(\.id)
+        var (arrangement, _) = sheet(6, pins: [Pin(photo: ids[2], cell: 2), Pin(photo: ids[5], cell: 5)])
+        arrangement.move(from: 4, to: 1)
+        XCTAssertTrue(arrangement.isPinned(cell: 3), "photograph 2 moved right and took its pin")
+        XCTAssertFalse(arrangement.isPinned(cell: 2))
+        XCTAssertTrue(arrangement.isPinned(cell: 5), "outside the run, untouched")
+    }
+
+    func testMovingAPinnedPhotographKeepsItPinnedAtItsNewCell() {
+        let ids = library(6).map(\.id)
+        var (arrangement, _) = sheet(6, pins: [Pin(photo: ids[4], cell: 4)])
+        arrangement.move(from: 4, to: 1)
+        XCTAssertEqual(arrangement.pins, [Pin(photo: ids[4], cell: 1)])
+    }
+
+    /// Nothing to make room for, so nothing else moves.
+    func testDroppingOntoAnEmptyCellPlacesItWithoutShifting() {
+        var (arrangement, id) = sheet(3, cells: 6)
+        arrangement.move(from: 0, to: 4)
+        XCTAssertEqual(arrangement.slots, [nil, id[1], id[2], nil, id[0], nil])
+        XCTAssertTrue(arrangement.isPinned(cell: 4))
+    }
+
+    func testDroppingBackWhereItStartedChangesNothing() {
+        var (arrangement, _) = sheet(6)
+        let before = arrangement
+        arrangement.move(from: 2, to: 2)
+        XCTAssertEqual(arrangement, before)
+    }
+
+    func testDraggingAnEmptyCellOrOffTheSheetChangesNothing() {
+        var (arrangement, _) = sheet(3, cells: 6)
+        let before = arrangement
+        arrangement.move(from: 5, to: 0)
+        arrangement.move(from: 0, to: 6)
+        arrangement.move(from: -1, to: 2)
+        XCTAssertEqual(arrangement, before)
+    }
+
+    /// The point of pinning on drop: the next roll leaves it where it was put.
+    func testTheNextRollHoldsTheDroppedPhotograph() {
+        let photographs = library(30)
+        var arrangement = roll(photographs, cells: 20, seed: 3)
+        let dragged = arrangement.photograph(at: 17)
+        arrangement.move(from: 17, to: 2)
+        for seed in UInt64(1)...10 {
+            let next = roll(photographs, pins: arrangement.pins, cells: 20, seed: seed)
+            XCTAssertEqual(next.photograph(at: 2), dragged, "seed \(seed)")
+        }
+    }
+
+    // MARK: - Walking the sheet in the lightbox
+
+    func testTheLightboxWalkPassesOverEmptyCells() {
+        let ids = library(3).map(\.id)
+        let arrangement = Arrangement(slots: [ids[0], nil, nil, ids[1], nil, ids[2]])
+        XCTAssertEqual(arrangement.filledCell(from: 0, step: 1), 3)
+        XCTAssertEqual(arrangement.filledCell(from: 3, step: 1), 5)
+        XCTAssertEqual(arrangement.filledCell(from: 5, step: -1), 3)
+        XCTAssertEqual(arrangement.filledCell(from: 3, step: -1), 0)
+    }
+
+    /// The end of the sequence stays the end.
+    func testTheLightboxWalkStopsAtEitherEndRatherThanWrapping() {
+        let (arrangement, _) = sheet(3, cells: 5)
+        XCTAssertNil(arrangement.filledCell(from: 2, step: 1), "only empty cells after the last photograph")
+        XCTAssertNil(arrangement.filledCell(from: 0, step: -1))
+        XCTAssertNil(arrangement.filledCell(from: 1, step: 0))
+    }
 }

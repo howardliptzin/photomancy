@@ -98,4 +98,24 @@ final class CellShapeTests: XCTestCase {
         XCTAssertEqual(document.cellAspect(for: nil), 1.5, accuracy: 0.0001,
                        "All Photos derives from the whole library")
     }
+
+    // MARK: - Naming a shape in the menu
+
+    func testFamiliarRatiosAreNamedTheWayPhotographersSayThem() {
+        XCTAssertEqual(CellShape.ratioName(1.5), "3:2")
+        XCTAssertEqual(CellShape.ratioName(2.0 / 3.0), "2:3")
+        XCTAssertEqual(CellShape.ratioName(4.0 / 3.0), "4:3")
+        XCTAssertEqual(CellShape.ratioName(1), "1:1")
+        XCTAssertEqual(CellShape.ratioName(1.52), "3:2", "a straightened 3:2 frame is still 3:2")
+    }
+
+    func testAnUnfamiliarRatioIsGivenAgainstOne() {
+        XCTAssertEqual(CellShape.ratioName(2.39), "2.39:1")
+    }
+
+    /// A derived shape says what it resolved to.
+    func testTheMenuNamesADerivedShapeByWhatItResolvedTo() {
+        XCTAssertEqual(CellShape.derivedFromCollection.menuTitle(derivedAspect: 1.5), "Auto · 3:2")
+        XCTAssertEqual(CellShape.square.menuTitle(derivedAspect: 1.5), "Square")
+    }
 }

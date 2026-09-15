@@ -272,4 +272,93 @@ final class LayoutTests: XCTestCase {
             XCTAssertEqual(b.width, a.width * scale, accuracy: 1e-7)
         }
     }
+
+    // MARK: - Hit testing a drop
+
+    func testEveryCellCentreHitsItsOwnCell() {
+        let cells = layout(cols: 5, rows: 4, gap: 12, cellAspect: 1.5, canvas: CGSize(width: 1400, height: 900))
+        for (index, rect) in cells.enumerated() {
+            XCTAssertEqual(cell(at: CGPoint(x: rect.midX, y: rect.midY), in: cells, gap: 12), index)
+        }
+    }
+
+    /// The gap is split between its two neighbours, so a drop in it is never lost.
+    func testAPointInTheGapBelongsToTheNearerCell() {
+        let cells = layout(cols: 5, rows: 4, gap: 12, cellAspect: 1, canvas: CGSize(width: 1200, height: 800))
+        let y = cells[0].midY
+        XCTAssertEqual(cell(at: CGPoint(x: cells[0].maxX + 2, y: y), in: cells, gap: 12), 0)
+        XCTAssertEqual(cell(at: CGPoint(x: cells[1].minX - 2, y: y), in: cells, gap: 12), 1)
+    }
+
+    func testAHairlineGapHasNoDeadLine() {
+        let cells = layout(cols: 8, rows: 8, gap: 0, cellAspect: 1, canvas: CGSize(width: 800, height: 800))
+        XCTAssertNotNil(cell(at: CGPoint(x: cells[0].maxX, y: cells[0].midY), in: cells, gap: 0))
+    }
+
+    /// Dropping in the dead space beyond the block cancels the drag.
+    func testTheDeadSpaceBeyondTheBlockBelongsToNoCell() {
+        let cells = layout(cols: 5, rows: 4, gap: 12, cellAspect: 1, canvas: CGSize(width: 1200, height: 800))
+        XCTAssertNil(cell(at: CGPoint(x: 20, y: 400), in: cells, gap: 12))
+        XCTAssertNil(cell(at: CGPoint(x: 1180, y: 400), in: cells, gap: 12))
+    }
+
+    // MARK: - The lightbox frame
+
+    private let lightboxArea = CGRect(x: 24, y: 24, width: 1600, height: 1000)
+
+    func testALargeOriginalIsFittedToTheLightbox() {
+        let frame = lightboxFrame(pixelWidth: 6000, pixelHeight: 4000, in: lightboxArea, scale: 2)
+        XCTAssertEqual(frame, fitted(aspectRatio: 1.5, in: lightboxArea))
+    }
+
+    /// One pixel of the file to one pixel of the display, never stretched.
+    func testASmallOriginalIsShownAtItsRealSizeCentred() {
+        let frame = lightboxFrame(pixelWidth: 1600, pixelHeight: 1200, in: lightboxArea, scale: 2)
+        XCTAssertEqual(frame.width, 800, accuracy: epsilon)
+        XCTAssertEqual(frame.height, 600, accuracy: epsilon)
+        XCTAssertEqual(frame.midX, lightboxArea.midX, accuracy: epsilon)
+        XCTAssertEqual(frame.midY, lightboxArea.midY, accuracy: epsilon)
+    }
+
+    func testRealSizeDependsOnTheDisplayScale() {
+        let retina = lightboxFrame(pixelWidth: 1600, pixelHeight: 1200, in: lightboxArea, scale: 2)
+        let standard = lightboxFrame(pixelWidth: 1600, pixelHeight: 1200, in: lightboxArea, scale: 1)
+        XCTAssertEqual(retina.width, 800, accuracy: epsilon)
+        XCTAssertEqual(standard, fitted(aspectRatio: 4.0 / 3.0, in: lightboxArea), "1600 points would not fit")
+    }
+
+    func testUnknownDimensionsFallBackToTheWholeArea() {
+        XCTAssertEqual(lightboxFrame(pixelWidth: 0, pixelHeight: 0, in: lightboxArea, scale: 2), lightboxArea)
+    }
+
+    // MARK: - Physical limits of the grid controls
+
+    /// At the limit the sheet still lays out; one pixel past it, it cannot.
+    func testTheMaximumGapIsTheLastOneThatStillLaysOut() {
+        let canvas = CGSize(width: 1200, height: 800)
+        let limit = maximumGap(cols: 5, rows: 4, canvas: canvas)
+        XCTAssertEqual(layout(cols: 5, rows: 4, gap: limit, cellAspect: nil, canvas: canvas).count, 20)
+        XCTAssertTrue(layout(cols: 5, rows: 4, gap: limit + 1, cellAspect: nil, canvas: canvas).isEmpty ||
+                      layout(cols: 5, rows: 4, gap: limit + 1, cellAspect: nil, canvas: canvas)[0].width < 1)
+        XCTAssertEqual(limit, limit.rounded(), "whole pixels")
+    }
+
+    func testACanvasWithNoSizeYetOffersNoGap() {
+        XCTAssertEqual(maximumGap(cols: 5, rows: 4, canvas: .zero), 0)
+    }
+
+    func testTheMostCellsStillLeavesEachAtLeastAPoint() {
+        let count = maximumCells(along: 1200, gap: 12)
+        let cells = layout(cols: count, rows: 1, gap: 12, cellAspect: nil, canvas: CGSize(width: 1200, height: 800))
+        XCTAssertEqual(cells.count, count)
+        XCTAssertGreaterThanOrEqual(cells[0].width, 1)
+        XCTAssertTrue(layout(cols: count + 1, rows: 1, gap: 12, cellAspect: nil, canvas: CGSize(width: 1200, height: 800)).isEmpty ||
+                      layout(cols: count + 1, rows: 1, gap: 12, cellAspect: nil, canvas: CGSize(width: 1200, height: 800))[0].width < 1)
+    }
+
+    /// Nothing caps an ordinary grid: 64 columns at a hairline is far inside it.
+    func testOrdinaryGridsAreNowhereNearTheLimit() {
+        XCTAssertGreaterThan(maximumCells(along: 1400, gap: 1), 64)
+        XCTAssertGreaterThan(maximumGap(cols: 8, rows: 8, canvas: CGSize(width: 1400, height: 900)), 48)
+    }
 }

@@ -49,6 +49,69 @@ public func fitted(aspectRatio: Double, in cell: CGRect) -> CGRect {
     )
 }
 
+/// Which cell a point on the sheet belongs to, for dropping a dragged photograph.
+///
+/// Each cell reaches half a gap beyond its edges, so the gap between two cells is
+/// split between them and there is no hairline to miss at a 1 px gap. Past that
+/// — the dead space beyond the block — belongs to no cell, and a drop there is a
+/// cancelled drag.
+public func cell(at point: CGPoint, in cells: [CGRect], gap: Double) -> Int? {
+    let reach = (gap.isFinite && gap > 0) ? gap / 2 : 0
+    return cells.firstIndex { $0.insetBy(dx: -reach, dy: -reach).contains(point) }
+}
+
+/// Where the lightbox draws a photograph: fitted to the area, but never larger
+/// than the original.
+///
+/// A small original is shown at its real size — one pixel of the file to one
+/// pixel of the display — with background around it. Stretching it to fill
+/// would keep every lightbox view the same size, but it would show the
+/// photograph softer than the file actually is, and the lightbox is where a
+/// photographer looks closely.
+///
+/// - Parameters:
+///   - pixelWidth: The original, orientation-corrected.
+///   - pixelHeight: The original, orientation-corrected.
+///   - area: The space inside the lightbox's margins, in points.
+///   - scale: The display's backing scale — pixels per point.
+public func lightboxFrame(pixelWidth: Int, pixelHeight: Int, in area: CGRect, scale: Double) -> CGRect {
+    guard pixelWidth > 0, pixelHeight > 0 else { return area }
+    let fit = fitted(aspectRatio: Double(pixelWidth) / Double(pixelHeight), in: area)
+    let scale = (scale.isFinite && scale >= 1) ? scale : 1
+    let native = CGSize(width: Double(pixelWidth) / scale, height: Double(pixelHeight) / scale)
+    // Same shape, so one edge decides it.
+    guard native.width < fit.width else { return fit }
+    return CGRect(
+        x: area.midX - native.width / 2,
+        y: area.midY - native.height / 2,
+        width: native.width,
+        height: native.height
+    )
+}
+
+/// The largest whole-pixel gap that still leaves every cell at least
+/// `minimumCell` points on both edges, for this grid in this canvas.
+///
+/// Not a policy bound — nothing caps what can be played with. It is the point
+/// past which `layout()` has no room for cells and returns nothing, so the sheet
+/// would go blank. Zero for a canvas that has no size yet.
+public func maximumGap(cols: Int, rows: Int, canvas: CGSize, minimumCell: Double = 1) -> Double {
+    guard cols > 0, rows > 0,
+          canvas.width.isFinite, canvas.height.isFinite,
+          canvas.width > 0, canvas.height > 0 else { return 0 }
+    let across = (Double(canvas.width) - Double(cols) * minimumCell) / Double(cols + 1)
+    let down = (Double(canvas.height) - Double(rows) * minimumCell) / Double(rows + 1)
+    return max(0, min(across, down).rounded(.down))
+}
+
+/// The most cells one edge of the canvas can hold at `gap`, each at least
+/// `minimumCell` points — the same physical limit for columns and rows.
+public func maximumCells(along length: Double, gap: Double, minimumCell: Double = 1) -> Int {
+    guard length.isFinite, length > 0 else { return 1 }
+    let gap = (gap.isFinite && gap > 0) ? gap : 0
+    return max(1, Int(((length - gap) / (minimumCell + gap)).rounded(.down)))
+}
+
 public func layout(
     cols: Int,
     rows: Int,

@@ -18,6 +18,7 @@ final class LibraryController {
     /// `nil` is All Photos — the virtual collection, and the first-launch view.
     var selection: UUID? {
         didSet {
+            showingLightbox = false
             refreshCellAspect()
             // Undo does not cross collections: stepping back into a sheet you
             // are no longer looking at would be a surprise, not a rescue.
@@ -102,19 +103,54 @@ final class LibraryController {
         }
     }
 
+    /// The sheet's size, reported by the sheet. Used only to keep the grid
+    /// controls inside what the window can physically show — past that,
+    /// `layout()` has no room and the sheet goes blank. Never a policy bound.
+    var canvas: CGSize = .zero
+
     var columns: Int {
         get { settings.columns }
-        set { updateSettings { $0.columns = max(1, newValue) } }
+        set { updateSettings { $0.columns = physicalCount(newValue, along: canvas.width) } }
     }
 
     var rows: Int {
         get { settings.rows }
-        set { updateSettings { $0.rows = max(1, newValue) } }
+        set { updateSettings { $0.rows = physicalCount(newValue, along: canvas.height) } }
     }
 
+    /// Whole pixels, and no more than leaves every cell visible.
     var gap: Double {
         get { settings.gap }
-        set { updateSettings { $0.gap = max(0, newValue) } }
+        set {
+            var gap = max(0, newValue.rounded())
+            if canvas.width > 0, canvas.height > 0 {
+                gap = min(gap, maximumGap(cols: columns, rows: rows, canvas: canvas))
+            }
+            updateSettings { $0.gap = gap }
+        }
+    }
+
+    var background: SheetColor {
+        get { settings.background }
+        set { updateSettings { $0.backgroundHex = newValue.hex } }
+    }
+
+    var cellShape: CellShape {
+        get { settings.cellShape }
+        set {
+            updateSettings { $0.cellShape = newValue }
+            refreshCellAspect()
+        }
+    }
+
+    var cellShapeTitle: String {
+        settings.cellShape.menuTitle(derivedAspect: derivedAspect)
+    }
+
+    private func physicalCount(_ value: Int, along length: CGFloat) -> Int {
+        let value = max(1, value)
+        guard length > 0 else { return value }
+        return min(value, maximumCells(along: Double(length), gap: settings.gap))
     }
 
     /// How many cells the current grid has, against how many photographs there
@@ -123,14 +159,18 @@ final class LibraryController {
 
     // MARK: - The loop
 
-    private var history = History(Step(arrangement: Arrangement(), label: "Open"))
+    private var history = History(Step(arrangement: Arrangement(), label: "Open")) {
+        didSet { settleLightbox() }
+    }
 
     /// The selected cells.
     ///
     /// Deliberately not tied to which view holds the keyboard. Selection is what
     /// Delete acts on, so it has to survive clicking elsewhere, and a ring that
     /// appears only while the mouse is down is not a selection.
-    var selectedCells: Set<Int> = []
+    var selectedCells: Set<Int> = [] {
+        didSet { settleLightbox() }
+    }
 
     /// Where a Shift-click measures from — the last cell chosen outright.
     private var selectionAnchor: Int?
@@ -148,9 +188,18 @@ final class LibraryController {
     /// everything from the anchor to here. Option is the odd one out — it pins
     /// the photograph you hit and leaves the selection alone, because it is
     /// direct manipulation of that frame rather than a change of what is chosen.
-    func click(cell: Int, modifiers: NSEvent.ModifierFlags) {
+    func click(cell: Int, modifiers: NSEvent.ModifierFlags, clickCount: Int = 1) {
         let flags = modifiers.intersection(.deviceIndependentFlagsMask)
 
+        // A double-click is read here, from the click itself, rather than as a
+        // second tap gesture. Stacking one would make SwiftUI hold every single
+        // click for the double-click interval before selecting, and the loop
+        // would lag at its most frequent gesture. The first click has already
+        // selected; the second opens what it selected.
+        if clickCount >= 2, flags.isDisjoint(with: [.command, .shift, .option]) {
+            openLightbox(at: cell)
+            return
+        }
         if flags.contains(.option) {
             togglePin(at: cell)
             return
@@ -197,6 +246,54 @@ final class LibraryController {
     /// the key can be the same single route.
     var showingShortcuts = false
 
+    // MARK: - Lightbox
+
+    /// Whether the lightbox is up. What it shows is not stored: it is the
+    /// selected cell, so P, ⌫ and ⌘⌫ act on the photograph shown through the
+    /// same menu items as on the sheet, with no second route to drift.
+    var showingLightbox = false
+
+    /// The cell being shown, or `nil` when the lightbox is closed or its cell no
+    /// longer holds a photograph.
+    var lightboxCell: Int? {
+        guard showingLightbox, let cell = selectedCells.min(),
+              arrangement.photograph(at: cell) != nil else { return nil }
+        return cell
+    }
+
+    /// Double-click, or Return.
+    func openLightbox(at cell: Int) {
+        guard arrangement.photograph(at: cell) != nil else { return }
+        select(cell)
+        showingLightbox = true
+    }
+
+    func toggleLightbox() {
+        if lightboxCell != nil {
+            showingLightbox = false
+        } else if let cell = selectedCells.min() {
+            openLightbox(at: cell)
+        }
+    }
+
+    func closeLightbox() {
+        showingLightbox = false
+    }
+
+    /// Through the sheet in cell order, passing over empty cells and stopping at
+    /// either end. The sequence on the sheet is the one being divined.
+    func stepLightbox(_ step: Int) {
+        guard let cell = lightboxCell,
+              let next = arrangement.filledCell(from: cell, step: step) else { return }
+        select(next)
+    }
+
+    /// Closes the lightbox once its cell holds nothing — after a deletion, an
+    /// undo or a new grid — so it cannot spring open again on the next click.
+    private func settleLightbox() {
+        if showingLightbox, lightboxCell == nil { showingLightbox = false }
+    }
+
     /// Which collection is being renamed inline, if any. Held here so the
     /// sidebar row and the menu command are the same one route.
     var renamingCollection: UUID?
@@ -216,7 +313,7 @@ final class LibraryController {
 
     /// Roughly 200 ms rather than a cut — the movement is what lets the eye
     /// register what changed, which is the whole point of animating at all.
-    private func stepping(_ change: () -> Void) {
+    func stepping(_ change: () -> Void) {
         if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
             change()
         } else {
@@ -264,6 +361,20 @@ final class LibraryController {
         persistPins()
     }
 
+    /// Drag a photograph onto a cell: it moves there and is pinned, and the cells
+    /// between shift one place to make room. An ordinary step, so ⌘Z puts the
+    /// sheet back as it was.
+    func move(from source: Int, to target: Int) {
+        var next = arrangement
+        next.move(from: source, to: target)
+        guard next != arrangement else { return }
+        stepping { commit(next, label: "Move") }
+        // The selection is by cell, and the cells have just shifted under it.
+        // What you dragged is what you were working with.
+        select(target)
+        persistPins()
+    }
+
     /// Releases everything and deals again.
     func reset() {
         let rolled = Arrangement.rolled(
@@ -288,11 +399,20 @@ final class LibraryController {
         var next = arrangement
         next.removeClosingGaps(ids)
         refreshCellAspect()
-        stepping { commit(next, label: ids.count == 1 ? "Remove" : "Remove \(ids.count)", restoration: restoration) }
         // The sheet has closed up, so the cell you were on now holds whatever
-        // followed — which is where you would look next.
-        selectedCells = next.photograph(at: landing) != nil ? [landing] : []
+        // followed — which is where you would look next. In the lightbox,
+        // removing the last photograph on the sheet steps back to the one before
+        // rather than closing. Chosen before the commit, so the lightbox never
+        // sees a moment with nothing to show.
+        if next.photograph(at: landing) != nil {
+            selectedCells = [landing]
+        } else if showingLightbox, let previous = next.filledCell(from: landing, step: -1) {
+            selectedCells = [previous]
+        } else {
+            selectedCells = []
+        }
         selectionAnchor = selectedCells.first
+        stepping { commit(next, label: ids.count == 1 ? "Remove" : "Remove \(ids.count)", restoration: restoration) }
         persistPins()
     }
 
@@ -336,6 +456,11 @@ final class LibraryController {
     }
 
     func moveSelection(byColumns columns: Int, rows: Int) {
+        if showingLightbox {
+            // ← → walk the sheet; a sequence has no up or down.
+            if columns != 0 { stepLightbox(columns) }
+            return
+        }
         guard cellCount > 0 else { return }
         guard let current = selectedCells.min(), selectedCells.count == 1 else {
             // From nothing, or from a multiple selection, an arrow key settles
@@ -390,6 +515,10 @@ final class LibraryController {
     /// behaviour: a derived shape re-derives on import.
     private(set) var cellAspect: Double = 1
 
+    /// What a derived shape resolves to for this collection, whichever shape is
+    /// chosen — the menu names it. Cached for the same reason as `cellAspect`.
+    private(set) var derivedAspect: Double = 1
+
     /// The sheet looks photographs up by hash on every frame, so a linear scan
     /// of the library would be a scan per cell per frame.
     private var referenceIndex: [ContentHash: PhotoReference] = [:]
@@ -400,6 +529,7 @@ final class LibraryController {
 
     func refreshCellAspect() {
         cellAspect = store.document.cellAspect(for: selection)
+        derivedAspect = CellShape.derivedFromCollection.aspect(for: store.photos(in: selection))
         referenceIndex = Dictionary(
             store.document.references.map { ($0.id, $0) },
             uniquingKeysWith: { first, _ in first }
@@ -429,7 +559,15 @@ final class LibraryController {
 
     func importPhotographs(from urls: [URL]) {
         guard !urls.isEmpty else { return }
-        let destination = selection
+        // All Photos is the union of the collections and holds nothing of its
+        // own. Photographs arriving there — dropped on the window, opened with
+        // Photomancy, or on first launch — go into a new collection, opened with
+        // its name ready to type.
+        if selection == nil {
+            newCollection()
+            renamingCollection = selection
+        }
+        guard let destination = selection else { return }
         importProgress = ImportProgress(completed: 0, total: 0)
 
         Task {
@@ -468,8 +606,26 @@ final class LibraryController {
 
     func deleteSelectedCollection() {
         guard let selection else { return }
-        store.removeCollection(selection)
-        self.selection = nil
+        deleteCollection(selection)
+    }
+
+    /// Photographs in no other collection leave the library with it — All Photos
+    /// is the union of the collections. Not undoable, like deleting from the
+    /// library, so the history is cleared, and a sheet that was showing them is
+    /// dealt afresh.
+    func deleteCollection(_ id: UUID) {
+        store.removeCollection(id)
+        refreshCellAspect()
+        if selection == id {
+            selection = nil
+        } else if selection == nil {
+            rebuildArrangement(resettingHistory: true)
+        } else {
+            // This sheet is unchanged, but its undo steps are not safe: undoing a
+            // removal of a photograph the deleted collection also held would put
+            // back a membership whose photograph has left the library.
+            history.reset(to: history.current)
+        }
     }
 
     // MARK: - Diagnostics

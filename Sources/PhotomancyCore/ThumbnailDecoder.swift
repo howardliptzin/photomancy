@@ -158,7 +158,10 @@ public enum ThumbnailDecoder {
 /// the cell size changes materially" — this is what materially means.
 public enum ThumbnailSize {
 
-    public static let ladder = [128, 192, 256, 384, 512, 768, 1024, 1536, 2048]
+    /// Up to 5120 because the lightbox decodes at window size, and a photograph
+    /// filling a 5K window is that long on its long edge. Stopping at 2048 left
+    /// the one view meant for looking closely quietly soft on a large display.
+    public static let ladder = [128, 192, 256, 384, 512, 768, 1024, 1536, 2048, 3072, 4096, 5120]
 
     public static func bucket(forPixels pixels: Int) -> Int {
         guard pixels > 0 else { return ladder[0] }
@@ -179,5 +182,20 @@ public enum ThumbnailSize {
     /// of the grid is quietly soft.
     public static func bucket(forCell size: CGSize, scale: Double) -> Int {
         bucket(forPoints: max(size.width, size.height), scale: scale)
+    }
+
+    /// The size to decode for a photograph drawn at `size` points: its own long
+    /// edge, rounded up the ladder, but never past the original's long edge.
+    ///
+    /// From the photograph's drawn size rather than the space around it: a
+    /// portrait frame in a landscape window is drawn at the window's height, and
+    /// asking from the width decodes far more than can be shown. And capped at
+    /// the original, because ImageIO never enlarges — asking a 1600-pixel file
+    /// for 3072 returns 1600 anyway, and every larger request would store the
+    /// same image again under another key.
+    public static func bucket(forPhotograph size: CGSize, originalLongEdge: Int, scale: Double) -> Int {
+        let wanted = bucket(forPoints: max(size.width, size.height), scale: scale)
+        guard originalLongEdge > 0 else { return wanted }
+        return min(wanted, originalLongEdge)
     }
 }

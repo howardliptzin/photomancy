@@ -66,6 +66,31 @@ struct ContentView: View {
                 Text("All Photos").font(.headline)
             }
         }
+        ToolbarItem(placement: .navigation) {
+            // Quiet, beside the title, because the shape belongs to the
+            // collection. A derived shape says what it resolved to.
+            if !controller.photographs.isEmpty {
+                Menu {
+                    Picker("Cell shape", selection: cellShape) {
+                        Text(CellShape.derivedFromCollection.menuTitle(derivedAspect: controller.derivedAspect))
+                            .tag(CellShape.derivedFromCollection)
+                        Text("Square").tag(CellShape.square)
+                        Text("3:2").tag(CellShape.threeByTwo)
+                        Text("4:3").tag(CellShape.fourByThree)
+                    }
+                    .pickerStyle(.inline)
+                    .labelsHidden()
+                } label: {
+                    Text(controller.cellShapeTitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .menuStyle(.button)
+                .buttonStyle(.borderless)
+                .fixedSize()
+                .help("Cell shape")
+            }
+        }
         ToolbarItem(placement: .principal) {
             if let progress = controller.importProgress {
                 HStack(spacing: 8) {
@@ -106,6 +131,10 @@ struct ContentView: View {
 }
 
 extension ContentView {
+    fileprivate var cellShape: Binding<CellShape> {
+        Binding(get: { controller.cellShape }, set: { controller.cellShape = $0 })
+    }
+
     fileprivate func collectionName(_ id: UUID) -> Binding<String> {
         Binding(
             get: { controller.store.document.collections.first { $0.id == id }?.name ?? "" },
@@ -125,7 +154,9 @@ struct EmptyLibraryView: View {
                 .foregroundStyle(.tertiary)
             Text("Drag photographs here")
                 .font(.title3)
-            Text("Or a folder of them. Curation happens now — after this, chance takes over.")
+            Text(controller.selection == nil
+                 ? "Or a folder of them. They go into a new collection. Selection happens now; the order is found by rolling."
+                 : "Or a folder of them. Selection happens now; the order is found by rolling.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

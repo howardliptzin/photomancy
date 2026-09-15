@@ -69,6 +69,34 @@ public enum CellShape: String, Codable, Sendable, Hashable, CaseIterable {
 
 
 
+extension CellShape {
+
+    /// How the cell-shape menu names this shape. A derived shape says what it
+    /// resolved to — "Auto · 3:2" — so a shape that re-derives on import is at
+    /// least visible.
+    public func menuTitle(derivedAspect: Double) -> String {
+        switch self {
+        case .square: "Square"
+        case .threeByTwo: "3:2"
+        case .fourByThree: "4:3"
+        case .derivedFromCollection: "Auto · \(CellShape.ratioName(derivedAspect))"
+        }
+    }
+
+    /// Width ÷ height as photographers say it — 3:2, 4:3, 2:3 — within the same
+    /// tolerance the majority uses. An unfamiliar ratio is given against 1.
+    public static func ratioName(_ aspect: Double, tolerance: Double = 0.02) -> String {
+        guard aspect.isFinite, aspect > 0 else { return "1:1" }
+        let familiar = [(1, 1), (3, 2), (2, 3), (4, 3), (3, 4), (5, 4), (4, 5),
+                        (7, 5), (5, 7), (16, 9), (9, 16), (2, 1), (1, 2)]
+        for (width, height) in familiar {
+            let ratio = Double(width) / Double(height)
+            if abs(aspect - ratio) / ratio <= tolerance { return "\(width):\(height)" }
+        }
+        return String(format: "%.2f:1", aspect)
+    }
+}
+
 /// 5 × 4 is a starting point, not a constraint.
 ///
 /// 8 × 8 at a 1 px gap and 3 × 2 at 4 px are both ordinary uses. What a grid

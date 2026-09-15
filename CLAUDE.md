@@ -9,10 +9,13 @@ Read it before writing code. Section numbers below refer to it.
 
 **M2 plan:** https://claude.ai/code/artifact/64a6432f-5628-4671-a186-caa7fbe960f7
 
+**M4 plan:** https://claude.ai/code/artifact/7031cc7e-46c0-4982-a1e3-8f8613890646
+
 **Status:** M1–M3 complete and in daily use. Import and collections, bookmarks, the
 thumbnail cache, `layout()` and the sheet, and the loop — randomize, select, pin,
 remove, undo. Several settled decisions were reversed by using it; that is the point
-of stopping here. Next is M4 (§08), but not before the week of real use is done.
+of stopping here. The week of use is done and M4 is under way on branches: drag to
+position, the lightbox, the All Photos rule, and the settings bar.
 
 ## What this is
 
@@ -55,7 +58,7 @@ shaped by hand.
   a majority it falls back to square. That fallback is not a consolation — a mixed
   orientation collection has no majority ratio, and square is the only shape where a
   photograph and its transpose occupy the same area, so the arithmetic lands exactly
-  where the minimax argument says it should. Options: derived, square, 3:2, 4:3.
+  where the minimax argument says it should. Options: Auto (derived), square, 3:2, 4:3.
 - **5 × 4 is a starting grid, not a constraint.** 8 × 8 at a 1 px gap and 3 × 2 at
   4 px are both ordinary uses. Never bound what can be played with on screen
   because of what it would cost on paper.
@@ -120,8 +123,19 @@ shaped by hand.
 - **Decode at display size** via ImageIO, off the main thread. Two-tier cache:
   in-memory `NSCache` + on-disk in Application Support.
 - Collections are app-managed reference lists, **not folders**. Plain `Codable` store.
-- **All Photos** is a virtual collection: every reference, de-duped by content hash.
-  Own pins, own settings. The first-launch view.
+- **All Photos is the union of the collections**, and holds nothing of its own: every
+  photograph in any collection, once, de-duped by content hash. It keeps its own pins
+  and settings, because it is still a sheet to roll. A photograph enters the library
+  only into a named collection — importing while All Photos is open creates a
+  collection and opens it for naming — and leaves the library with its last collection:
+  removing it from that collection takes it out (undoably), and deleting a collection
+  takes the photographs no other collection holds. **The rule is structural, not a
+  repair:** the library document's only public way in is adding photographs to a named
+  collection, collections cannot be edited from outside it, and a randomized test checks
+  after every step that the library equals the union. Deleting a collection clears the
+  undo history, as deleting from the library does — otherwise undoing a removal of a
+  photograph the deleted collection also held would restore a membership whose
+  photograph had left the library.
 
 ## M1 is not done until
 
@@ -162,6 +176,7 @@ poor relation.
 | `⌫` | Remove selected from this collection — undoable |
 | `⌘⌫` | Delete selected from Photomancy — not undoable |
 | Double-click | Lightbox |
+| `↩` | Open or close the lightbox |
 | Drag | Move to a cell and pin there |
 | `←` `→` | In lightbox: move through photos |
 | `Esc` | Close lightbox |
@@ -176,6 +191,15 @@ poor relation.
   baseline, which the menu bar needs anyway. Plus a `?` overlay over the sheet,
   dismissed with `Esc`, because the loop is a full-window activity and nobody is
   looking at the menu bar while they are in it.
+- **The settings bar: typed numbers, a colour well, the shape beside the title.**
+  Columns, rows and gap are whole-number fields, each with a stepper for the pointer;
+  background is an opaque colour well whose choice is converted into sRGB, never
+  reinterpreted; the tally sits at the right. Cell shape is a quiet menu beside the
+  collection title, labelled **Auto** when the shape follows the photographs, naming what it resolved to — `Auto · 3:2`.
+  The only limits are physical: no more gap, columns or rows than leave every cell at
+  least a point in the current window, because past that the sheet goes blank.
+- **Return opens and closes the lightbox** — the keyboard route the table lacked.
+  `Space`, the Quick Look key, is Randomize.
 - **Undo spans shuffles.** Non-negotiable — it's what makes gambling on chance safe.
 - **Selection is a set, and Mac conventions decide it in one place.** Plain click
   replaces, `⌘` adds or removes one, `⇧` takes everything from the anchor to here.
@@ -185,10 +209,25 @@ poor relation.
 - **`P` acts on the whole selection; a mixed selection pins rather than unpins.** The
   gesture should add the state being asked for, not take it from the frames that
   already have it.
+- **Dragging a photograph onto a cell moves it there and pins it; the cells between
+  shift one place.** A removal and an insertion composed — out of its cell, gap closed,
+  back in at the target — so it follows the removal rule: pins travel with their
+  photographs, nothing leaves the sheet, no cell empties that was not empty. Dragged
+  back the run shifts right, dragged forward it shifts left. Onto an empty cell there
+  is nothing to make room for, so it is simply placed. Dropped in the dead space or on
+  its own cell, nothing is recorded. An ordinary step, so `⌘Z` undoes it.
 - **Removing closes the gap, and pinned frames move up with everything else.** That
   settles what a pin means: it holds a photograph across *rolls*, not at a fixed cell
   for ever, so a pin's cell follows its photograph. Empty cells that were already
   there stay put; only the gap the removal made is closed.
+- **The lightbox walks the sheet in cell order**, skipping empty cells. The sequence
+  on the sheet is the one being divined; collection order is import order and means
+  nothing here.
+- **The lightbox never enlarges a photograph past its real size.** A small original is
+  shown one file pixel to one display pixel, with background around it: stretching it
+  would show it softer than the file is, and the lightbox is where a photographer looks
+  closely. It decodes for the photograph's own drawn long edge, never past the
+  original's — ImageIO does not enlarge, so a larger request only stores duplicates.
 - **The lightbox names the file — essential, not bloat.** Reviewing a sequence often
   means choosing between near-identical frames, and the file's name is what tells them
   apart and what carries the decision out of the app, to wherever the frame is worked on
@@ -196,6 +235,8 @@ poor relation.
   photograph, following it, at the caption size of the bar's gap value, in a quiet ink
   derived from the sheet background so it reads on white and black alike. It does not
   reopen captions: nothing is written on the sheet or on paper.
+- **`P` and the deletions work in the lightbox, on the photograph shown.** Same
+  gesture, same meaning, everywhere.
 - **Selection is model state, not focus.** A selected cell stays selected when the
   keyboard goes elsewhere. Tying the ring to `@FocusState` made it appear only while
   the mouse was down, which is not a selection — and Delete and the lightbox both act
@@ -210,9 +251,12 @@ poor relation.
   is shared hashes — and stay 200 deep. A removal carries what it took away, so the
   stack is trimmed to the last ten of those, along with everything older, and undo
   never reaches a step that looks reversible and is not.
-- **A removal's inverse is membership, not the reference.** Remove-from-collection
-  never touches the `PhotoReference`, so undoing it restores ids, their *indices* in
-  the ordered membership, and any pins — about a hundred bytes a photograph. Measured
+- **A removal's inverse is membership — and the reference only when it left the
+  library.** Undoing restores ids, their *indices* in the ordered membership, and any
+  pins — about a hundred bytes a photograph. A photograph that was in no other
+  collection also left the library, so its `PhotoReference` travels in the step (about
+  a kilobyte with its bookmark) and goes back at its index in the library, with its All
+  Photos pins; the ten-removal bound caps what that holds. Measured
   alternative: a whole-document snapshot is 4.5 MB at 5,000 references, which is why
   it was rejected.
 - **Deleting from the library clears the history.** The step is not undoable by
@@ -292,6 +336,4 @@ or because it is cheap. Features are added after release only on enough user req
 
 ## Unsettled — ask, don't assume
 
-- **How the cell-shape override is chosen.** A pull-down near the collection title is
-  the standing proposal. Deferred to M4 with the rest of the settings UI; M2 honours
-  the stored value without offering a control for it.
+Nothing open at present.
