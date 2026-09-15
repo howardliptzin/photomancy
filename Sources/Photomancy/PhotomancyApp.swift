@@ -31,21 +31,33 @@ struct PhotomancyApp: App {
             // a menu item carrying its own key equivalent. The menu owns these
             // outright, so a key is dispatched once no matter what has focus.
             CommandGroup(replacing: .undoRedo) {
-                Button(LibraryController.shared.undoTitle) { LibraryController.shared.undo() }
-                    .keyboardShortcut("z", modifiers: .command)
-                    .disabled(!LibraryController.shared.canUndo)
-                Button(LibraryController.shared.redoTitle) { LibraryController.shared.redo() }
-                    .keyboardShortcut("z", modifiers: [.command, .shift])
-                    .disabled(!LibraryController.shared.canRedo)
+                // While a text field has the keyboard, ⌘Z belongs to the typing —
+                // stepping the sheet back is not what anyone editing a name means.
+                // Sent down the responder chain to the field's own undo.
+                if LibraryController.shared.isEditingText {
+                    Button("Undo") { NSApp.sendAction(Selector(("undo:")), to: nil, from: nil) }
+                        .keyboardShortcut("z", modifiers: .command)
+                    Button("Redo") { NSApp.sendAction(Selector(("redo:")), to: nil, from: nil) }
+                        .keyboardShortcut("z", modifiers: [.command, .shift])
+                } else {
+                    Button(LibraryController.shared.undoTitle) { LibraryController.shared.undo() }
+                        .keyboardShortcut("z", modifiers: .command)
+                        .disabled(!LibraryController.shared.canUndo)
+                    Button(LibraryController.shared.redoTitle) { LibraryController.shared.redo() }
+                        .keyboardShortcut("z", modifiers: [.command, .shift])
+                        .disabled(!LibraryController.shared.canRedo)
+                }
             }
 
-            // Cut, copy, paste and select all are gone — nothing responds to
-            // them. Delete does, so it belongs here, where anyone would look.
+            // After the system's Cut, Copy, Paste and Select All, not in place of
+            // them: every text field — collection names, the grid fields — needs
+            // those, and macOS only delivers their keys through these menu items.
+            // Delete belongs here too, where anyone would look.
             // Two items rather than one contextual title or a dialog: both
             // outcomes are named, both are one keystroke, and neither needs
             // dismissing. Removing from a collection is the frequent, reversible
             // one and gets the bare key.
-            CommandGroup(replacing: .pasteboard) {
+            CommandGroup(after: .pasteboard) {
                 Button("Remove from Collection") {
                     LibraryController.shared.removeSelectedFromCollection()
                 }

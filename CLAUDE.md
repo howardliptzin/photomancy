@@ -207,6 +207,14 @@ poor relation.
   least a point in the current window, because past that the sheet goes blank.
 - **Return opens and closes the lightbox** — the keyboard route the table lacked.
   `Space`, the Quick Look key, is Randomize.
+- **Cut, Copy, Paste and Select All stay in the Edit menu.** Reversed: they were removed
+  because "nothing responds to them", but every text field — collection names, the grid
+  fields — does, and macOS delivers those keys only through the menu items. Without them
+  the keys do nothing while typing. Likewise `⌘Z` belongs to the text while a field has
+  the keyboard, and steps the sheet back only when none does.
+- **Double-click a collection to rename it** — through the list's own primary action,
+  never a tap gesture on the row. A tap gesture, even a simultaneous one, swallows the
+  click the list selects with, and the sidebar stops changing collections.
 - **Undo spans shuffles.** Non-negotiable — it's what makes gambling on chance safe.
 - **Selection is a set, and Mac conventions decide it in one place.** Plain click
   replaces, `⌘` adds or removes one, `⇧` takes everything from the anchor to here.
@@ -295,8 +303,7 @@ and logic-free so it can be torn up without touching layout, caching or state.
 
 ## Do not build (v1)
 
-Cut, copy, paste and select all — nothing responds to them, so they are removed from
-the menu rather than left greyed out forever · watched folders · publishing to a server · constraint rules for the shuffle · editing
+Watched folders · publishing to a server · constraint rules for the shuffle · editing
 or cropping · **Fill / any crop-to-cell mode** · multi-page contact sheets ·
 captions/metadata overlays on the sheet or on paper (the file's name in the lightbox is not one of these — see Interaction) · iCloud sync · soft proofing or CMYK · restoring a full
 arrangement across launches.
