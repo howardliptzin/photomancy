@@ -13,7 +13,7 @@ public struct LibraryDocument: Codable, Sendable, Equatable {
     /// Read-only from outside: membership changes only through the methods here,
     /// which keep the library equal to the union of the collections.
     public private(set) var collections: [PhotoCollection]
-    /// Settings for the All Photos view, which is virtual and so has nowhere
+    /// Settings for the All Photos view, which is not a stored collection and so has nowhere
     /// else to keep them.
     public var allPhotosSettings: SheetSettings
     /// Likewise its pins.

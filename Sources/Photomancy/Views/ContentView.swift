@@ -51,7 +51,7 @@ struct ContentView: View {
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
         ToolbarItem(placement: .navigation) {
-            // All Photos is virtual and has no name to change.
+            // All Photos is the union of the collections and has no name to change.
             if let id = controller.selection {
                 TextField("Collection", text: collectionName(id))
                     .textFieldStyle(.plain)

@@ -11,12 +11,13 @@ Read it before writing code. Section numbers below refer to it.
 
 **M4 plan:** https://claude.ai/code/artifact/7031cc7e-46c0-4982-a1e3-8f8613890646
 
-**Status:** M1–M4 complete and in daily use. Import and collections, bookmarks, the
-thumbnail cache, `layout()` and the sheet, and the loop — randomize, select, pin,
-remove, undo. Several settled decisions were reversed by using it; that is the point
-of stopping here. The week of use is done and M4 is merged to `main` (2026-09-15): drag
-to position, the lightbox, the All Photos rule, and the settings bar. Next is M5:
-print and PDF.
+**Status:** M1–M4 complete, merged to `main` and in daily use (M4 on 2026-09-15).
+Import and collections, bookmarks, the thumbnail cache, `layout()` and the sheet, the
+loop — randomize, select, pin, remove, undo — then drag to position, the lightbox, All
+Photos as the union of the collections, and the settings bar. Using it reversed several
+settled decisions, which is why each milestone stops for real use before the next.
+**Next is M5: print and PDF.** Carried into it, still unbuilt: the relink flow for a
+photograph that has moved (§07), and deriving the memory cache limit from window area.
 
 ## What this is
 
@@ -174,7 +175,7 @@ poor relation.
 | | |
 |---|---|
 | `Space` | Randomize — **also a toolbar button** |
-| Arrow keys | Move focus ring between cells |
+| Arrow keys | Move the selection between cells |
 | `P` | Pin/unpin the selected photo |
 | Click | Select a photo |
 | `⌘`Click | Add to / take out of the selection |
@@ -188,6 +189,8 @@ poor relation.
 | `←` `→` | In lightbox: move through photos |
 | `Esc` | Close lightbox |
 | `⌘Z` / `⇧⌘Z` | Step through arrangements |
+| `⌘R` | Reset — release every pin and roll again |
+| `⇧⌘R` | Rename the collection — or double-click it |
 | `?` | Show the keyboard legend — `Esc` closes it |
 | `⌘P` | Print (also yields PDF) |
 
@@ -202,7 +205,8 @@ poor relation.
   Columns, rows and gap are whole-number fields, each with a stepper for the pointer;
   background is an opaque colour well whose choice is converted into sRGB, never
   reinterpreted; the tally sits at the right. Cell shape is a quiet menu beside the
-  collection title, labelled **Auto** when the shape follows the photographs, naming what it resolved to — `Auto · 3:2`.
+  collection title, labelled **Auto** when the shape follows the photographs and naming
+  what it resolved to — `Auto · 3:2`.
   The only limits are physical: no more gap, columns or rows than leave every cell at
   least a point in the current window, because past that the sheet goes blank.
 - **Return opens and closes the lightbox** — the keyboard route the table lacked.
@@ -285,8 +289,8 @@ poor relation.
   is more literally correct, but every ratio put the dot somewhere else and the marks
   danced around the sheet. With a derived cell shape the two coincide for most frames.
 - **Menu items carrying bare-key equivalents are disabled while a text field has the
-  keyboard.** `Space` and `P` are matched before a field ever sees them, so without
-  this nobody can type a space into a collection name.
+  keyboard.** `Space`, `P`, `⌫` and `↩` are matched before a field ever sees them, so
+  without this nobody could type a space into a collection name or delete a letter.
 - Randomize animates cells to new positions (~200ms), respecting
   `prefers-reduced-motion`. The movement is how the eye registers what changed.
 
@@ -305,8 +309,9 @@ and logic-free so it can be torn up without touching layout, caching or state.
 
 Watched folders · publishing to a server · constraint rules for the shuffle · editing
 or cropping · **Fill / any crop-to-cell mode** · multi-page contact sheets ·
-captions/metadata overlays on the sheet or on paper (the file's name in the lightbox is not one of these — see Interaction) · iCloud sync · soft proofing or CMYK · restoring a full
-arrangement across launches.
+captions/metadata overlays on the sheet or on paper (the file's name in the lightbox
+is not one of these — see Interaction) · iCloud sync · soft proofing or CMYK ·
+restoring a full arrangement across launches.
 
 Each sounds small and each moves this toward being a weaker Lightroom. If I propose
 one, refuse and point here.

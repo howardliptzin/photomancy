@@ -16,13 +16,18 @@ Free, open source, and distributed through the Mac App Store.
 
 ## Status
 
-In development; nothing to install yet.
+In development; nothing to install yet. M1–M4 are complete and in daily use; next is
+M5, print and PDF.
 
 Working: import and collections, security-scoped bookmarks, the two-tier thumbnail
 cache, the layout function and the sheet, and the loop — randomize, select, pin,
-remove, undo. In daily use, which is where the last few rounds of changes came from.
+remove, undo. From M4: drag a photograph onto a cell to move it there and pin it; the
+lightbox, which names the file under each photograph, because reviewing often means
+choosing between near-identical frames and the name is what tells them apart; and
+per-collection settings — columns, rows, gap, background and cell shape. All Photos is
+the union of the collections. Much of this came from using it.
 
-Built in M4: drag to reposition; the lightbox, which names the file under each photograph, because reviewing often means choosing between near-identical frames and the name is what tells them apart; and per-collection settings — columns, rows, gap, background and cell shape. All Photos is the union of the collections. Not built: printing.
+Not built yet: printing and PDF.
 
 ## Building
 
@@ -52,6 +57,11 @@ launch can only have come from the originals.
 
 It needs photographs to work with. `TestPhotos/` is ignored by git, so put a
 handful of your own there first — a mix of JPEG, HEIC and PNG is the useful case.
+
+**It deletes the app's whole library** to start from a clean slate. If you have real
+collections, back up the container's `Data` folder first and put it back afterwards;
+the script refuses to run over an existing library unless `PHOTOMANCY_WIPE_LIBRARY=1`
+is set.
 
 ```
 ./Scripts/verify-relaunch.sh

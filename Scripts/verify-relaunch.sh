@@ -51,6 +51,17 @@ reference_count() {
     python3 -c "import json,sys;print(len(json.load(open(sys.argv[1]))['references']))" "$LIBRARY" 2>/dev/null || echo 0
 }
 
+# The clean slate below deletes the app's whole library — every collection, pin
+# and setting. Refuse to do that to a real one unless it has been asked for.
+EXISTING=$(reference_count)
+if [ "$EXISTING" -gt 0 ] && [ "${PHOTOMANCY_WIPE_LIBRARY:-}" != 1 ]; then
+    red "This would delete the app's library, which holds $EXISTING photographs."
+    echo "Back up the container's Data folder first, for example:"
+    echo "  ditto \"$HOME/Library/Containers/$BUNDLE_ID/Data\" ~/Photomancy-Data-backup"
+    echo "then run again with PHOTOMANCY_WIPE_LIBRARY=1, and put the backup back afterwards."
+    exit 2
+fi
+
 step "0 · Clean slate"
 quit_app
 rm -rf "$HOME/Library/Containers/$BUNDLE_ID"
@@ -86,7 +97,7 @@ START=$(date '+%Y-%m-%d %H:%M:%S')
 open -a "$APP"
 sleep 12
 
-CHECK=$(log show --predicate "subsystem == \"$BUNDLE_ID\"" --start "$START" --style compact 2>/dev/null \
+CHECK=$(/usr/bin/log show --predicate "subsystem == \"$BUNDLE_ID\"" --start "$START" --style compact 2>/dev/null \
         | grep -E "access check|thumbnails:|launched with" | sed 's/^[^ ]* [^ ]* *//')
 echo "$CHECK"
 

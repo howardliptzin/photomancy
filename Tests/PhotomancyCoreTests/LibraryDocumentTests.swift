@@ -76,7 +76,7 @@ final class LibraryDocumentTests: XCTestCase {
         XCTAssertEqual(document.reference(for: reference("a").id)?.bookmark, Data("fresh".utf8))
     }
 
-    /// All Photos is virtual, so its settings have nowhere else to live.
+    /// All Photos is not a stored collection, so its settings have nowhere else to live.
     func testAllPhotosCarriesItsOwnSettings() {
         var document = LibraryDocument()
         let collection = document.addCollection(named: "Set")

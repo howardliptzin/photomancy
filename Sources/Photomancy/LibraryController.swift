@@ -15,7 +15,7 @@ final class LibraryController {
     let store: LibraryStore
     let cache: ThumbnailCache
 
-    /// `nil` is All Photos — the virtual collection, and the first-launch view.
+    /// `nil` is All Photos — the union of the collections, and the first-launch view.
     var selection: UUID? {
         didSet {
             showingLightbox = false
