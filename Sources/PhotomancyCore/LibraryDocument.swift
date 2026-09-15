@@ -159,6 +159,93 @@ public struct LibraryDocument: Codable, Sendable, Equatable {
         collections[offset].restore(restoration.pins)
     }
 
+    // MARK: - Moving
+
+    /// Moves photographs from one sheet into another collection, as one change.
+    ///
+    /// One change rather than a removal and then an add: removing first would,
+    /// for a moment, take a photograph whose only collection is the source out of
+    /// the library, and its All Photos pins with it. Here the photographs join
+    /// the destination before they leave the source, so nothing ever departs.
+    ///
+    /// `photographs` are in sheet cell order and join the destination in that
+    /// order. Those in `pinned` stay pinned: they fill the destination's first
+    /// cells not already pinned there, in the same order, so a sequence found on
+    /// one sheet carries across. A photograph already pinned in the destination
+    /// keeps the cell it has there.
+    ///
+    /// From All Photos (`source == nil`) nothing is removed — there is no
+    /// collection to take the photographs out of — so it adds.
+    ///
+    /// Returns `nil` when nothing would change, so a no-op never lands in the
+    /// undo history.
+    public mutating func move(
+        _ photographs: [ContentHash],
+        pinned: Set<ContentHash>,
+        from source: UUID?,
+        to destination: UUID
+    ) -> Transfer? {
+        guard source != destination,
+              let target = collections.firstIndex(where: { $0.id == destination })
+        else { return nil }
+
+        let available: Set<ContentHash>
+        if let source {
+            guard let collection = collections.first(where: { $0.id == source }) else { return nil }
+            available = Set(collection.memberIDs)
+        } else {
+            available = Set(references.map(\.id))
+        }
+        var seen: Set<ContentHash> = []
+        let moving = photographs.filter { available.contains($0) && seen.insert($0).inserted }
+        guard !moving.isEmpty else { return nil }
+
+        let members = Set(collections[target].memberIDs)
+        let joined = moving.filter { !members.contains($0) }
+        collections[target].add(joined)
+
+        let alreadyPinned = Set(collections[target].pins.map(\.photo))
+        var taken = Set(collections[target].pins.map(\.cell))
+        var cell = 0
+        var placed: [Pin] = []
+        for photo in moving where pinned.contains(photo) && !alreadyPinned.contains(photo) {
+            while taken.contains(cell) { cell += 1 }
+            placed.append(Pin(photo: photo, cell: cell))
+            taken.insert(cell)
+        }
+        collections[target].pins.append(contentsOf: placed)
+
+        // Only now out of the source: every one of them is in the destination,
+        // so none can leave the library.
+        let removal = source.flatMap { removeFromCollection(Set(moving), collectionID: $0) }
+        assert(removal?.departures.isEmpty ?? true, "a move never takes a photograph out of the library")
+
+        guard removal != nil || !joined.isEmpty || !placed.isEmpty else { return nil }
+        return Transfer(
+            source: source,
+            destination: destination,
+            photographs: moving,
+            pinned: moving.filter { pinned.contains($0) },
+            removal: removal,
+            joined: joined,
+            pins: placed
+        )
+    }
+
+    /// Takes a move back: the photographs return to the source at their indices
+    /// with their pins, and leave the destination if the move put them there.
+    /// A collection the move created stays, empty.
+    public mutating func reverse(_ transfer: Transfer) {
+        if let removal = transfer.removal { restore(removal) }
+        guard let target = collections.firstIndex(where: { $0.id == transfer.destination }) else { return }
+        // Back in the source first, so these are held elsewhere by now. Checked
+        // anyway: leaving a photograph in the destination is a partial undo,
+        // taking it out of its last collection would break the union.
+        let elsewhere = Set(collections.filter { $0.id != transfer.destination }.flatMap(\.memberIDs))
+        collections[target].remove(Set(transfer.joined).intersection(elsewhere))
+        collections[target].pins.removeAll { transfer.pins.contains($0) }
+    }
+
     /// `nil` means All Photos, the union of the collections — so removing there
     /// is removing from the library. Removing from a collection takes the
     /// photograph out of that list, and out of the library only if it was in no

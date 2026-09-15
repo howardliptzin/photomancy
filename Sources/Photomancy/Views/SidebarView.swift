@@ -44,6 +44,8 @@ struct SidebarView: View {
         List(selection: rowSelection) {
             Section {
                 Label("All Photos", systemImage: "square.grid.2x2")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .dropZone(.allPhotos, in: controller.dropZones)
                     .badge(controller.store.document.references.count)
                     .tag(Row.allPhotos)
             }
@@ -52,6 +54,7 @@ struct SidebarView: View {
                 Section("Collections") {
                     ForEach(controller.store.document.collections) { collection in
                         row(for: collection)
+                            .dropZone(.collection(collection.id), in: controller.dropZones)
                             .tag(Row.collection(collection.id))
                     }
                 }
@@ -83,7 +86,11 @@ struct SidebarView: View {
             .buttonStyle(.plain)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
+            // Photographs dragged here, or onto any empty space in the sidebar,
+            // go into a new collection; the button says so while they are over it.
+            .background(dropHighlight(controller.sidebarDrop == .newCollection))
         }
+        .dropZone(.sidebar, in: controller.dropZones)
     }
 
     @ViewBuilder
@@ -105,8 +112,22 @@ struct SidebarView: View {
                 .task { renameFieldFocused = true }
         } else {
             Label(collection.name, systemImage: "rectangle.stack")
+                .frame(maxWidth: .infinity, alignment: .leading)
+                // Photographs dragged out of the sheet and held over this row go
+                // here when dropped.
+                .background(dropHighlight(controller.sidebarDrop == .collection(collection.id)))
                 .badge(collection.memberIDs.count)
         }
+    }
+
+    /// The accent, faint, a little larger than the label it sits behind so it
+    /// reads as the row.
+    private func dropHighlight(_ active: Bool) -> some View {
+        RoundedRectangle(cornerRadius: 5)
+            .fill(Color.accentColor.opacity(active ? 0.28 : 0))
+            .padding(.horizontal, -6)
+            .padding(.vertical, -3)
+            .allowsHitTesting(false)
     }
 
     /// A single collection, or `nil` — All Photos has no name to change and

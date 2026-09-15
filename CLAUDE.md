@@ -185,6 +185,9 @@ poor relation.
 | `⌥`Click | Pin/unpin in place — leaves the selection alone |
 | `⌫` | Remove selected from this collection — undoable |
 | `⌘⌫` | Delete selected from Photomancy — not undoable |
+| `⌃⌘N` | Move selected to a new collection — undoable |
+| Edit ▸ Move to ▸, or right-click | Move selected to a collection (Add to ▸ in All Photos) |
+| Drag onto the sidebar | Move to that collection — a new one on empty sidebar space |
 | Double-click | Lightbox |
 | `↩` | Open or close the lightbox |
 | Drag | Move to a cell and pin there |
@@ -274,6 +277,58 @@ poor relation.
   not**, following Lightroom. A confirmation dialog was weighed and rejected: it
   degrades to a one-button dialog in All Photos, so the app would behave differently
   depending on where you stand.
+- **Move to ▸ takes the selection into another collection, out of this one.** Found
+  in use: rolling one collection shows that some of it belongs in another, and the
+  only way there was importing again and removing. A submenu, not a dialog — the
+  collections, with **New Collection** (`⌃⌘N`, Finder's New Folder with Selection) at
+  the top, as Photos and Mail do. It sits in the **Edit** menu beside Remove from
+  Collection, because both take photographs out of this collection and whoever looks
+  for one finds the other; the Sheet menu is the loop itself. The same submenu is the
+  right-click menu on a photograph, which acts on the clicked photograph alone when it
+  is outside the selection, as in Finder. Disabled with nothing selected and while a
+  text field has the keyboard.
+  - **In All Photos it reads Add to ▸** and removes nothing — there is no source
+    collection. Named collections only move; Add to there waits until someone reaches
+    for it.
+  - **One mutation in `LibraryDocument.move`.** The photographs join the destination
+    before they leave the source. Done as remove-then-add, a photograph whose only
+    collection is the source would pass through a moment outside the library and lose
+    its All Photos pins. The randomized invariant test covers moves and their undo and
+    redo, and `MoveTests` checks that undo and redo land exactly.
+  - **Pins:** the source closes its gap as for a removal. The destination takes the
+    photographs in sheet cell order, and the pinned ones stay pinned in its first
+    cells not already pinned there, in that order — a found sequence carries across. A
+    photograph already pinned in the destination keeps its cell there.
+  - **After Move to New Collection the person stays on the sheet.** Switching mid-roll
+    would lose it. The new collection waits in the sidebar with its name open.
+  - **Undoable from the source sheet**: back at their indices with their pins, and out
+    of the destination if the move put them there. A collection the move created stays,
+    empty — deleting it is a separate decision. **Not counted against the ten
+    removals**: nothing leaves the library, so the step holds ids, indices and pins,
+    never a reference.
+  - **Dragging out of the sheet onto the sidebar is the pointer route.** Within the
+    sheet a drag still moves one photograph to a cell. Carried onto a collection row it
+    moves there — the whole selection if the drag started on a selected photograph,
+    otherwise just that one; onto empty sidebar space, which includes the New Collection
+    button, it goes into a new collection; onto All Photos or its own collection nothing
+    happens. **A carried selection is seen leaving together** — found in use: with the
+    rings hidden and only the dragged photograph moving, a drag of several read as
+    dropping the selection, though all of it went. So during a drag the rings travel
+    with their photographs, and once the pointer leaves the sheet everything carried
+    gathers into a small stack under it, with a count when there is more than one; back
+    over the sheet they return to their cells. The target row lights. **After a drop you
+    stay on the source sheet, as after the menu** — weighed in use on 2026-09-15.
+    Following the gesture to the destination felt natural, but opening a collection
+    clears the undo history, so the move would arrive un-undoable; staying keeps both
+    options, since following is one click on the row just dropped on; and splitting a
+    collection is usually several drops in a row. Revisit only if clicking the
+    destination after nearly every drop becomes the habit — and then for the menu too,
+    with undo made to survive the switch. The rule is `SidebarDrop.resolve` in Core. Targets
+    are measured through pass-through AppKit views (`DropZones`) at the moment a drag
+    asks — never a gesture on a row, and never cached, so scrolling or collapsing the
+    sidebar leaves nothing stale. The button has no zone of its own: a reader inside the
+    sidebar's bottom inset measures as the whole sidebar, which made every drop a new
+    collection.
 - **At most ten removals stay reversible.** Ordinary steps are cheap — an arrangement
   is shared hashes — and stay 200 deep. A removal carries what it took away, so the
   stack is trimmed to the last ten of those, along with everything older, and undo

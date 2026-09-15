@@ -59,8 +59,52 @@ public struct Restoration: Equatable, Sendable {
     }
 }
 
+/// Photographs moved from one sheet into another collection, and everything
+/// needed to take the move back.
+///
+/// Nothing leaves the library in a move — the photographs join the destination
+/// before they leave the source — so no `PhotoReference` travels here: ids,
+/// indices and pins, about a hundred bytes a photograph.
+public struct Transfer: Equatable, Sendable {
+
+    /// `nil` is All Photos, which holds nothing of its own: from there the
+    /// photographs are added and nothing is removed.
+    public let source: UUID?
+    public let destination: UUID
+    /// What was asked for, in sheet cell order, so redo can ask again.
+    public let photographs: [ContentHash]
+    /// Of those, the ones pinned on the source sheet, in the same order.
+    public let pinned: [ContentHash]
+    /// Where they sat in the source and the pins that went with them. `nil`
+    /// from All Photos. Never carries departures.
+    public let removal: Restoration?
+    /// Photographs that were not already in the destination, and so leave it
+    /// again on undo.
+    public let joined: [ContentHash]
+    /// Pins the move placed in the destination.
+    public let pins: [Pin]
+
+    public init(
+        source: UUID?,
+        destination: UUID,
+        photographs: [ContentHash],
+        pinned: [ContentHash],
+        removal: Restoration?,
+        joined: [ContentHash],
+        pins: [Pin]
+    ) {
+        self.source = source
+        self.destination = destination
+        self.photographs = photographs
+        self.pinned = pinned
+        self.removal = removal
+        self.joined = joined
+        self.pins = pins
+    }
+}
+
 /// One entry in the undo history: the sheet as it was left, what to call the
-/// step, and — for a removal — what it took away.
+/// step, and — for a removal or a move — what it changed in the library.
 public struct Step: Equatable, Sendable {
 
     public var arrangement: Arrangement
@@ -70,12 +114,22 @@ public struct Step: Equatable, Sendable {
     /// arrangement alone, and restoring the previous arrangement is the whole
     /// inverse.
     public var restoration: Restoration?
+    /// Non-nil only for a move to another collection.
+    public var transfer: Transfer?
 
-    public init(arrangement: Arrangement, label: String, restoration: Restoration? = nil) {
+    public init(
+        arrangement: Arrangement,
+        label: String,
+        restoration: Restoration? = nil,
+        transfer: Transfer? = nil
+    ) {
         self.arrangement = arrangement
         self.label = label
         self.restoration = restoration
+        self.transfer = transfer
     }
 
+    /// What the ten-removal bound counts. A move is not one: it carries no
+    /// reference, so it costs what an ordinary step costs.
     public var isRemoval: Bool { restoration != nil }
 }
