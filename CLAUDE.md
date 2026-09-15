@@ -187,6 +187,7 @@ poor relation.
 | `⌘⌫` | Delete selected from Photomancy — not undoable |
 | `⌃⌘N` | Move selected to a new collection — undoable |
 | Edit ▸ Move to ▸, or right-click | Move selected to a collection (Add to ▸ in All Photos) |
+| Drag onto the sidebar | Move to that collection — a new one on empty sidebar space |
 | Double-click | Lightbox |
 | `↩` | Open or close the lightbox |
 | Drag | Move to a cell and pin there |
@@ -305,6 +306,19 @@ poor relation.
     empty — deleting it is a separate decision. **Not counted against the ten
     removals**: nothing leaves the library, so the step holds ids, indices and pins,
     never a reference.
+  - **Dragging out of the sheet onto the sidebar is the pointer route.** Within the
+    sheet a drag still moves one photograph to a cell. Carried onto a collection row it
+    moves there — the whole selection if the drag started on a selected photograph,
+    otherwise just that one; onto empty sidebar space, which includes the New Collection
+    button, it goes into a new collection; onto All Photos or its own collection nothing
+    happens. While it is over a target the row lights and the photographs that would
+    leave dim: the sheet cannot draw over the sidebar, a separate hosting view, so no
+    image follows the pointer there. The rule is `SidebarDrop.resolve` in Core. Targets
+    are measured through pass-through AppKit views (`DropZones`) at the moment a drag
+    asks — never a gesture on a row, and never cached, so scrolling or collapsing the
+    sidebar leaves nothing stale. The button has no zone of its own: a reader inside the
+    sidebar's bottom inset measures as the whole sidebar, which made every drop a new
+    collection.
 - **At most ten removals stay reversible.** Ordinary steps are cheap — an arrangement
   is shared hashes — and stay 200 deep. A removal carries what it took away, so the
   stack is trimmed to the last ten of those, along with everything older, and undo

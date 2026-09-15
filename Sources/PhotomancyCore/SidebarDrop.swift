@@ -4,7 +4,7 @@ import Foundation
 /// over the sidebar.
 ///
 /// Pure, so the rule can be tested without a window: the app measures where the
-/// sidebar, its rows and its New Collection button are, and asks here.
+/// sidebar and its rows are, and asks here.
 public enum SidebarDrop: Hashable, Sendable {
     /// Into this collection — moved from a collection, added from All Photos.
     case collection(UUID)
@@ -22,22 +22,20 @@ public enum SidebarDrop: Hashable, Sendable {
     /// person sees, and a pointer passing between two rows must not flicker to
     /// "new collection". Where grown rows overlap, the nearest wins.
     ///
-    /// The New Collection button is checked first because a row scrolled under
-    /// it is hidden there. Empty sidebar space also makes a new collection: it is
-    /// the one place nothing else is.
+    /// Everywhere else in the sidebar makes a new collection — the space below
+    /// the rows, and the New Collection button, which sits there. It is the one
+    /// place nothing else is.
     ///
     /// Rectangles only have to share one coordinate space with the point.
     public static func resolve(
         _ point: CGPoint,
         sidebar: CGRect,
-        newCollectionButton: CGRect?,
         allPhotosRow: CGRect?,
         collectionRows: [(id: UUID, frame: CGRect)],
         source: UUID?,
         slack: CGFloat = 0
     ) -> SidebarDrop? {
         guard sidebar.contains(point) else { return nil }
-        if let newCollectionButton, spans(newCollectionButton, point.y, slack: 0) { return .newCollection }
 
         var candidates: [(drop: SidebarDrop, distance: CGFloat)] = []
         if let allPhotosRow, spans(allPhotosRow, point.y, slack: slack) {

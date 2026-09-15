@@ -19,6 +19,7 @@ struct ShortcutLegend: View {
         ("⇧ Click", "Select everything from the last one to here"),
         ("⌥ Click", "Pin or unpin, in place"),
         ("Drag", "Move to a cell and pin it there"),
+        ("Drag to sidebar", "Move into that collection, or a new one"),
         ("Double-click", "Open it in the lightbox"),
         ("↩", "Open or close the lightbox"),
         ("← →", "In the lightbox: the previous or next photograph"),

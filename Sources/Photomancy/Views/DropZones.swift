@@ -13,9 +13,12 @@ import PhotomancyCore
 @MainActor
 final class DropZones {
 
+    /// No zone for the New Collection button. Measured inside the sidebar's
+    /// bottom inset, its reader came back the size of the whole sidebar, and
+    /// every drop became a new collection. It sits below the rows, where empty
+    /// space already means a new collection, so it needs no zone of its own.
     enum Zone: Hashable {
         case sidebar
-        case newCollectionButton
         case allPhotos
         case collection(UUID)
     }
@@ -52,7 +55,6 @@ final class DropZones {
         return SidebarDrop.resolve(
             point,
             sidebar: sidebar,
-            newCollectionButton: frame(of: .newCollectionButton, in: window),
             allPhotosRow: frame(of: .allPhotos, in: window),
             collectionRows: rows,
             source: source,

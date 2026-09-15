@@ -89,7 +89,6 @@ struct SidebarView: View {
             // Photographs dragged here, or onto any empty space in the sidebar,
             // go into a new collection; the button says so while they are over it.
             .background(dropHighlight(controller.sidebarDrop == .newCollection))
-            .dropZone(.newCollectionButton, in: controller.dropZones)
         }
         .dropZone(.sidebar, in: controller.dropZones)
     }

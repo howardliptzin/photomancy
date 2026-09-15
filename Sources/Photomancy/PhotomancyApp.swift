@@ -61,11 +61,11 @@ struct PhotomancyApp: App {
                 // Beside Remove from Collection rather than in the Sheet menu:
                 // both take photographs out of this collection, so whoever looks
                 // for one finds the other. The Sheet menu is the loop itself.
-                MoveMenu(controller: LibraryController.shared)
-                    .disabled(
-                        !LibraryController.shared.hasSelection
-                            || LibraryController.shared.isEditingText
-                    )
+                MoveMenu(
+                    controller: LibraryController.shared,
+                    isEnabled: LibraryController.shared.hasSelection
+                        && !LibraryController.shared.isEditingText
+                )
 
                 Button("Remove from Collection") {
                     LibraryController.shared.removeSelectedFromCollection()

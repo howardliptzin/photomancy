@@ -14,14 +14,30 @@ struct MoveMenu: View {
     /// Set from the right-click menu: the photograph that was clicked, which the
     /// menu acts on alone when it is not part of the selection.
     var cell: Int?
+    /// Applied to every item, not only to the submenu. In the menu bar,
+    /// `.disabled` on the submenu greyed nothing: Move to stayed live with
+    /// nothing selected while Remove from Collection beside it did not.
+    var isEnabled = true
 
     var body: some View {
+        if isEnabled {
+            menu
+        } else {
+            // AppKit keeps a submenu's title live whatever its items say, so a
+            // disabled Move to is drawn as a plain disabled item instead.
+            Button(controller.moveMenuTitle) {}
+                .disabled(true)
+        }
+    }
+
+    private var menu: some View {
         Menu(controller.moveMenuTitle) {
             Button("New Collection") {
                 target()
                 controller.moveSelectedPhotographsToNewCollection()
             }
             .keyboardShortcut("n", modifiers: [.control, .command])
+            .disabled(!isEnabled)
 
             let destinations = controller.moveDestinations
             if !destinations.isEmpty { Divider() }
@@ -30,8 +46,10 @@ struct MoveMenu: View {
                     target()
                     controller.moveSelectedPhotographs(to: collection.id)
                 }
+                .disabled(!isEnabled)
             }
         }
+        .disabled(!isEnabled)
     }
 
     private func target() {
