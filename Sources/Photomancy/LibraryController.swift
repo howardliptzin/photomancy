@@ -342,7 +342,8 @@ final class LibraryController {
         }
     }
 
-    /// Space, and the toolbar button. The primary verb: it must cost nothing.
+    /// Space, and the Randomize button in the control bar. The primary verb: it
+    /// must cost nothing.
     func randomize() {
         let rolled = Arrangement.rolled(
             photographs: photographs,

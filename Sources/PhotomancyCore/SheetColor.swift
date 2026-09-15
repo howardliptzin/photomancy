@@ -140,7 +140,7 @@ extension SheetColor {
     }
 
     /// The backgrounds a sheet most often wants: white, black, and a mid grey.
-    /// Anything else is the colour well beside them.
+    /// Anything else is the colour wheel beside them.
     public static let presets: [Preset] = [
         Preset(name: "White", color: .white),
         Preset(name: "Black", color: .black),

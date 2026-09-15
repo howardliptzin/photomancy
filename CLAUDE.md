@@ -196,24 +196,25 @@ poor relation.
 
 - **A pin is marked with a white dot with a thin black outline, in the upper left
   corner of the frame.** One mark, one place, no variants.
-- **The shortcuts get a legend, two ways.** Every action is a menu item showing its
-  key equivalent, and every toolbar button's tooltip names its shortcut — the native
-  baseline, which the menu bar needs anyway. Plus a `?` overlay over the sheet,
-  dismissed with `Esc`, because the loop is a full-window activity and nobody is
+- **The shortcuts get a legend, two ways.** Every action is a menu item showing its key
+  equivalent, and every toolbar and control-bar button's tooltip names its shortcut —
+  the native baseline, which the menu bar needs anyway. Plus a `?` overlay over the
+  sheet, dismissed with `Esc`, because the loop is a full-window activity and nobody is
   looking at the menu bar while they are in it.
 - **The control bar, left to right: grid, background, Randomize, tally.** Columns, rows
   and gap are whole-number fields, each with a stepper for the pointer. Background is
   three preset swatches — white, black, grey `#939292` — ringed when the sheet is on
   one, then a colour wheel for anything else. The wheel opens the Colors window, rings
-  when the background is custom and shows that colour in its centre; a pick is
-  converted into sRGB, never reinterpreted, and opaque. The system colour well was
-  dropped: on a white bar it was an empty white capsule and did not read as a control. Then a **Randomize** button, the pointer route for
-  `Space`: it moved out of the toolbar because it belongs with what shapes the sheet,
-  and in the toolbar it was not where anyone looked. The tally sits at the right. Cell shape is a quiet menu beside the
+  when the background is custom and shows that colour in its centre; a pick is converted
+  into sRGB, never reinterpreted, and opaque. The system colour well was dropped: on a
+  white bar it was an empty white capsule and did not read as a control. Then a
+  **Randomize** button, the pointer route for `Space`: it moved out of the toolbar
+  because it belongs with what shapes the sheet, and in the toolbar it was not where
+  anyone looked. The tally sits at the right. Cell shape is a quiet menu beside the
   collection title, labelled **Auto** when the shape follows the photographs and naming
-  what it resolved to — `Auto · 3:2`.
-  The only limits are physical: no more gap, columns or rows than leave every cell at
-  least a point in the current window, because past that the sheet goes blank.
+  what it resolved to — `Auto · 3:2`. The only limits are physical: no more gap, columns
+  or rows than leave every cell at least a point in the current window, because past
+  that the sheet goes blank.
 - **Return opens and closes the lightbox** — the keyboard route the table lacked.
   `Space`, the Quick Look key, is Randomize.
 - **Cut, Copy, Paste and Select All stay in the Edit menu.** Reversed: they were removed

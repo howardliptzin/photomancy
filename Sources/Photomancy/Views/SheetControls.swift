@@ -1,5 +1,4 @@
 import SwiftUI
-import AppKit
 import PhotomancyCore
 
 /// Columns, rows, gap and background, written straight to the collection's
