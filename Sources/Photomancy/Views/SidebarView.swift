@@ -78,7 +78,15 @@ struct SidebarView: View {
     private func row(for collection: PhotoCollection) -> some View {
         if controller.renamingCollection == collection.id {
             TextField("Name", text: name(of: collection))
-                .textFieldStyle(.roundedBorder)
+                .textFieldStyle(.plain)
+                .padding(.horizontal, 4)
+                .padding(.vertical, 1)
+                // The selected row is drawn in the accent colour, and a field with
+                // no ground of its own put thin dark type straight onto that blue —
+                // illegible. A white ground, and light-mode text on it whatever the
+                // system appearance, so it reads in dark mode too.
+                .background(Color.white, in: RoundedRectangle(cornerRadius: 4))
+                .environment(\.colorScheme, .light)
                 .focused($renameFieldFocused)
                 .onSubmit { controller.renamingCollection = nil }
                 .onExitCommand { controller.renamingCollection = nil }
@@ -86,6 +94,12 @@ struct SidebarView: View {
         } else {
             Label(collection.name, systemImage: "rectangle.stack")
                 .badge(collection.memberIDs.count)
+                // Double-click the name to rename it, as in Finder. Simultaneous,
+                // so the list's own single-click selection is never held back
+                // waiting to see whether a second click follows.
+                .simultaneousGesture(TapGesture(count: 2).onEnded {
+                    controller.renamingCollection = collection.id
+                })
                 .contextMenu {
                     Button("Rename") { controller.renamingCollection = collection.id }
                     Button("Delete Collection", role: .destructive) {
