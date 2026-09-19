@@ -19,9 +19,11 @@ loop — randomize, select, pin, remove, undo — then drag to position, the lig
 Photos as the union of the collections, and the settings bar. After M4, found in use and
 merged the same day: moving photographs between collections, by menu and by dragging
 onto the sidebar. Using it reversed several settled decisions, which is why each
-milestone stops for real use before the next. **Next is M5: print and PDF.** Carried
-into it, still unbuilt: the relink flow for a photograph that has moved (§07), and
-deriving the memory cache limit from window area.
+milestone stops for real use before the next. **M5, print and PDF, is under way on
+`m5-print`** (M4 and Move to Collection approved in use, 2026-09-19). Part of M5, on
+their own branches, and required before any beta: the relink flow for a photograph
+that has moved (§07) — strictly by content, a re-exported edit is a different
+photograph — and deriving the memory cache limit from window area.
 
 ## What this is
 
@@ -51,8 +53,11 @@ shaped by hand.
 - **The canvas is the window, not the page.** The sheet fills the window and
   reflows live as it is resized. Print does not recompute geometry: it takes the
   rectangles `layout()` already produced for the window and applies one uniform
-  scale-and-translate onto the page's printable rect. Exact by construction rather
-  than by discipline. Still one page, still no pagination, and no page breaks.
+  scale-and-translate that fits the **grid block** — the cells and their outer gap —
+  onto the page's printable rect. The window's dead space is not part of the
+  composition and is not printed (settled 2026-09-19: at a wide window with square
+  cells it made every photograph 59% smaller for nothing). Exact by construction
+  rather than by discipline. Still one page, still no pagination, and no page breaks.
 - **The grid block scales; the cell shape is held.** Filling the window means cells
   grow as large as they can while keeping their shape, centred, with dead space at
   two window edges. Cells never distort to fit a window. Screen space is free.
@@ -97,11 +102,13 @@ shaped by hand.
   reshape at least corresponds to something the person just did.
 - **The gap is pixels on screen and proportional on paper.** Printing scales the
   sheet uniformly, so a 12 px gap is not a fixed physical measure — it is
-  `gap ÷ window width × page width`, and it changes with the window. Report the
+  `gap ÷ block width × printed block width`, and it changes with the window. Report the
   resulting millimetres in the print dialog instead of pretending otherwise.
 - **Paper is the print target**, remembered per collection, starting at **A4
-  landscape** — which makes the default output a contact sheet. It does not shape
-  the screen; it is consulted only when scaling a sheet onto a page.
+  landscape** — which makes the default output a contact sheet. Whatever paper the
+  print panel ends on is remembered, not only A4 and Letter, under new keys: the old
+  `size` key stays readable so a reverted build still loads the library. It does not
+  shape the screen; it is consulted only when scaling a sheet onto a page.
 - **Collections, pins and the collection that was open survive a quit.** This is the
   point of the bookmarks and the store, and it is not negotiable. A pin records the
   photograph *and its cell*, so pinned frames return where they were left; the
@@ -115,7 +122,11 @@ shaped by hand.
   intact library.
 - **Never `LazyVGrid` for the sheet** — its geometry is invisible to the print path
   and the two will drift.
-- **Print draws from full-resolution images**, never screen thumbnails.
+- **Print draws from the originals, decoded at the size they print: 360 pixels per
+  inch, never past the original.** Never from the thumbnail cache, never from a
+  camera's embedded preview — only a `.fullDecode`. The print panel's *preview* is a
+  screen and draws thumbnails; only the output pass, for the paper finally chosen,
+  decodes originals, off the main thread.
 - **Security-scoped bookmarks** stored at import and resolved before every read.
   Without this, collections are empty on second launch. Build it right on day one.
 - **Bookmarks are created with `.securityScopeAllowOnlyReadAccess`**, never
@@ -444,9 +455,10 @@ or because it is cheap. Features are added after release only on enough user req
 
 ## Unsettled — ask, don't assume
 
-- **The four M5 questions in the M5 plan:** how M4 and Move to Collection feel in use;
-  whether print scales the window or the grid block; what "full resolution" means for
-  print; whether Export PDF… is worth a read-write entitlement.
+- **Export PDF… and the read-write entitlement** — answered conditionally on
+  2026-09-19: drop Export PDF… if the print panel's own Save as PDF works on the
+  read-only entitlement; if it does not, read-write comes in and Export PDF… with it.
+  M5 step 0 measures which.
 - **What happens to the free `.dmg` after the beta.** When a free build is as convenient
   as the Store copy, the Store becomes a tip jar: about 290,000 people run Maccy's free,
   self-updating build, while its $9.99 Store listing has too few ratings to show. FSNotes'
