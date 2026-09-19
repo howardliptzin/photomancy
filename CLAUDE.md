@@ -1,7 +1,7 @@
 # Photomancy — project contract
 
-Native macOS app. Free, open source, shipped via the **Mac App Store** (signed,
-sandboxed). SwiftUI, Swift 6, macOS 14+.
+Native macOS app. **Sold on the Mac App Store** (signed, sandboxed) at a low price, and
+**open source under MIT** on GitHub — see Distribution. SwiftUI, Swift 6, macOS 14+.
 
 **Full brief (rationale lives there, not here):**
 https://claude.ai/code/artifact/5917d4a2-04fb-4561-87ce-7844ceb530ba
@@ -409,6 +409,30 @@ or because it is cheap. Features are added after release only on enough user req
 - A failed verification may be a failed measurement — prove the instrument before
   chasing the bug.
 
+## Distribution — settled (2026-09-19)
+
+- **v1 is sold on the Mac App Store, at a low price.** This reverses the original
+  premise of a free app: the goal is to sell it. The price is set late in the beta,
+  from what testers say; it lives in App Store Connect and can change at any time.
+- **The code stays open source, MIT, on GitHub.** Good for how it is received, and a
+  niche app runs little risk of someone selling a copy. Everything already pushed is
+  MIT for good whatever happens later — that door is already walked through. Maccy and
+  FSNotes sell MIT source on the Store this way: the Store copy is the same app,
+  bought for convenience and to support the work.
+- **The order:** finish M5 and the rest of the app — icon, sandbox audit, a verified
+  Release build — then enrol in the Apple Developer Program, notarise, run a free beta,
+  and put v1 on sale.
+- **No beta before the app is complete, A to Z.** Testers judge the whole app, and a
+  first impression is hard to redo. The cost is accepted: learning a milestone later
+  whether the loop lands with other photographers.
+- **The beta is free:** TestFlight with a public link, plus a notarised `.dmg` on GitHub
+  Releases. Beta testers get v1 free. Testers come from Reddit — photobook and zine
+  makers first — and photographers on Instagram.
+- **Selling as an Italian freelancer with a Partita IVA,** under the individual
+  enrolment below. Join the App Store Small Business Program before the first sale: 15%
+  commission up to 1 million USD in proceeds per calendar year. The trader contact
+  details the EU's Digital Services Act puts on the App Store page are accepted.
+
 ## Identity — settled
 
 - **Bundle ID:** `com.luna-park.Photomancy`. Permanent once shipped.
@@ -420,4 +444,11 @@ or because it is cheap. Features are added after release only on enough user req
 
 ## Unsettled — ask, don't assume
 
-Nothing open at present.
+- **The four M5 questions in the M5 plan:** how M4 and Move to Collection feel in use;
+  whether print scales the window or the grid block; what "full resolution" means for
+  print; whether Export PDF… is worth a read-write entitlement.
+- **What happens to the free `.dmg` after the beta.** When a free build is as convenient
+  as the Store copy, the Store becomes a tip jar: about 290,000 people run Maccy's free,
+  self-updating build, while its $9.99 Store listing has too few ratings to show. FSNotes'
+  free route is building from source. Decide before v1.
+- **The price** — late in the beta.

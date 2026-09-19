@@ -12,12 +12,14 @@ happens at whatever density the work wants. Printing takes what is on screen and
 scales it onto a single sheet; it exists to make a hard copy of a result, not to
 constrain how you arrive at one.
 
-Free, open source, and distributed through the Mac App Store.
+Open source under the MIT licence. It will be sold on the Mac App Store; the source
+stays here for anyone who would rather build it themselves.
 
 ## Status
 
 In development; nothing to install yet. M1–M4 are complete and in daily use; next is
-M5, print and PDF.
+M5, print and PDF. Once the app is complete there will be a free public beta, through
+TestFlight and a notarised download here.
 
 Working: import and collections, security-scoped bookmarks, the two-tier thumbnail
 cache, the layout function and the sheet, and the loop — randomize, select, pin,
