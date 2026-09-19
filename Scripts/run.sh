@@ -38,6 +38,12 @@ for _ in $(seq 1 40); do
     pgrep -f "$APP/Contents/MacOS/Photomancy" >/dev/null || break
     sleep 0.25
 done
+# A modal panel (print, save, a sheet) refuses the quit. Opening now would only
+# front the old copy — the exact thing this script exists to prevent.
+if pgrep -f "$APP/Contents/MacOS/Photomancy" >/dev/null; then
+    printf '\033[31mThe running copy did not quit\033[0m — close any open panel in it and run again.\n'
+    exit 1
+fi
 
 open "$APP"
 printf '\033[32mRunning\033[0m %s · %s\n' "$BRANCH" "$(git log --oneline -1)"
