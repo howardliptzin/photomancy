@@ -99,6 +99,33 @@ public enum PrintImages {
         return originalLongEdge > 0 ? min(wanted, originalLongEdge) : wanted
     }
 
+    /// Can every one of these be read right now?
+    ///
+    /// Separated out because it is worth asking *before* the print panel opens,
+    /// not only when the job runs: a missing photograph is a thing to fix, and
+    /// finding out after choosing paper and pressing Print is finding out too
+    /// late. Cheap — a resolved bookmark and a `stat` each, no pixels.
+    ///
+    /// Only a file that is gone is collected. Lost permission and an
+    /// unresolvable bookmark propagate as themselves, because calling those
+    /// "can't be found" would send someone hunting in the Finder for a file
+    /// that is exactly where they left it — the same mistake
+    /// `BookmarkResolver` takes care not to make in the other direction.
+    public static func checkAvailable(
+        _ placements: [Placement],
+        resolver: BookmarkResolver
+    ) throws {
+        var missing: [String] = []
+        for placement in placements.sorted(by: { $0.cell < $1.cell }) {
+            do {
+                try resolver.withAccess(placement.reference) { _ in }
+            } catch PhotoAccessError.missing {
+                missing.append(placement.reference.displayName)
+            }
+        }
+        guard missing.isEmpty else { throw PhotographsMissing(names: missing) }
+    }
+
     /// Decode every placed photograph at the size it prints on this page.
     ///
     /// - Throws: ``PhotographsMissing`` when any original cannot be reached —
@@ -117,23 +144,7 @@ public enum PrintImages {
         let placements = placements.filter { geometry.cells.indices.contains($0.cell) }
         guard !placements.isEmpty else { return [] }
 
-        // Everything the job needs, reached before any of it is decoded.
-        //
-        // Only a file that is gone is collected. Lost permission and an
-        // unresolvable bookmark propagate as themselves: they already carry
-        // accurate messages, and calling them "can't be found" would send
-        // someone looking in the Finder for a file that is exactly where they
-        // left it — the same mistake `BookmarkResolver` takes care not to make
-        // in the other direction.
-        var missing: [String] = []
-        for placement in placements.sorted(by: { $0.cell < $1.cell }) {
-            do {
-                try resolver.withAccess(placement.reference) { _ in }
-            } catch PhotoAccessError.missing {
-                missing.append(placement.reference.displayName)
-            }
-        }
-        guard missing.isEmpty else { throw PhotographsMissing(names: missing) }
+        try checkAvailable(placements, resolver: resolver)
 
         let transform = pageTransform(from: geometry.block, onto: printable)
         var frames: [SheetRenderer.Frame] = []

@@ -764,6 +764,123 @@ final class LibraryController {
         }
     }
 
+    // MARK: - Printing
+
+    /// Whether ⌘P has anything to do. An empty sheet is not worth a panel.
+    var canPrint: Bool {
+        !arrangement.slots.compactMap { $0 }.isEmpty
+    }
+
+    /// File ▸ Print… — the panel, on this collection's paper.
+    ///
+    /// Async because everything the job needs is gathered *before* the panel
+    /// opens: whether every original can still be read, and a thumbnail for
+    /// each placed photograph. Both are fast — the thumbnails are the ones on
+    /// screen — and doing them here is what keeps the panel itself instant.
+    /// Decoding originals happens later, in the output pass, on the thread
+    /// AppKit spawns for it.
+    func printSheet() async {
+        let geometry = sheetGeometry(settings: settings, cellAspect: cellAspect, canvas: canvas)
+        guard !geometry.cells.isEmpty else { return }
+
+        var placements: [PrintImages.Placement] = []
+        for (cell, id) in arrangement.slots.prefix(geometry.cells.count).enumerated() {
+            guard let id, let reference = reference(for: id) else { continue }
+            placements.append(PrintImages.Placement(cell: cell, reference: reference))
+        }
+        guard !placements.isEmpty else { return }
+
+        // Asked now rather than when the job runs: a missing photograph is a
+        // thing to go and fix, and finding out after choosing paper and
+        // pressing Print is finding out too late.
+        do {
+            try PrintImages.checkAvailable(placements, resolver: store.resolver)
+        } catch {
+            present(error)
+            return
+        }
+
+        var previewFrames: [SheetRenderer.Frame] = []
+        for placement in placements {
+            let cell = geometry.cells[placement.cell]
+            let pixels = ThumbnailSize.bucket(forCell: cell.size, scale: 2)
+            if let thumbnail = try? await cache.thumbnail(for: placement.reference, maxPixel: pixels) {
+                previewFrames.append(SheetRenderer.Frame(cell: placement.cell, image: thumbnail.image))
+            }
+        }
+
+        let job = SheetPrintJob(
+            geometry: geometry,
+            background: settings.background,
+            placements: placements,
+            previewFrames: previewFrames,
+            resolver: store.resolver,
+            title: currentTitle
+        )
+        run(job)
+    }
+
+    private func run(_ job: SheetPrintJob) {
+        let info = NSPrintInfo.shared.copy() as! NSPrintInfo
+        settings.paper.apply(to: info)
+        // The view is sized to the imageable area and draws into all of it, so
+        // nothing must scale or centre it a second time.
+        info.leftMargin = 0
+        info.rightMargin = 0
+        info.topMargin = 0
+        info.bottomMargin = 0
+        info.horizontalPagination = .fit
+        info.verticalPagination = .fit
+        info.isHorizontallyCentered = false
+        info.isVerticallyCentered = false
+
+        let view = PrintedSheetView(job: job, imageable: info.imageablePageBounds.size)
+        let operation = NSPrintOperation(view: view, printInfo: info)
+        operation.canSpawnSeparateThread = true
+        operation.jobTitle = job.title
+        operation.printPanel.options.insert([.showsPaperSize, .showsOrientation, .showsPreview])
+        operation.printPanel.addAccessoryController(PrintMetricsAccessory(geometry: job.geometry))
+
+        let collection = selection
+        SheetPrintDelegate.shared.didFinish = { [weak self] operation, success in
+            guard let self else { return }
+            // Whatever paper the panel ended on is what this collection prints
+            // on next time — remembered under keys an older build ignores.
+            if success {
+                var settings = self.store.document.settings(for: collection)
+                settings.paper = Paper(printInfo: operation.printInfo)
+                self.store.updateSettings(settings, for: collection)
+            }
+            if let error = view.error { self.present(error) }
+        }
+
+        guard let window = NSApp.keyWindow else {
+            _ = operation.run()
+            return
+        }
+        operation.runModal(
+            for: window,
+            delegate: SheetPrintDelegate.shared,
+            didRun: #selector(SheetPrintDelegate.printOperationDidRun(_:success:contextInfo:)),
+            contextInfo: nil
+        )
+    }
+
+    private func present(_ error: any Error) {
+        log.error("print: \(error.localizedDescription, privacy: .public)")
+        let alert = NSAlert()
+        alert.messageText = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        if let suggestion = (error as? LocalizedError)?.recoverySuggestion {
+            alert.informativeText = suggestion
+        }
+        alert.alertStyle = .warning
+        if let window = NSApp.keyWindow {
+            alert.beginSheetModal(for: window)
+        } else {
+            alert.runModal()
+        }
+    }
+
     // MARK: - Diagnostics
 
     /// Redeems every bookmark and reads the header of every file.
