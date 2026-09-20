@@ -49,13 +49,12 @@ public struct Arrangement: Sendable, Equatable {
     /// Pinned frames move up too. That settles what a pin means: it holds a
     /// photograph across *rolls*, not at a fixed cell for ever — so a pin's cell
     /// follows its photograph rather than the photograph being stranded from its
-    /// pin. Empty cells that were already there stay where they are; only the
-    /// gap the removal made is closed.
+    /// pin. The photographs left keep their order and close up from the front,
+    /// which is the sheet's invariant: empty cells only ever trail.
     public mutating func removeClosingGaps(_ ids: Set<ContentHash>) {
         let capacity = slots.count
-        var kept = slots.filter { slot in slot.map { !ids.contains($0) } ?? true }
-        kept.append(contentsOf: repeatElement(nil, count: max(0, capacity - kept.count)))
-        slots = Array(kept.prefix(capacity))
+        let kept = slots.compactMap { $0 }.filter { !ids.contains($0) }
+        slots = fill(kept, capacity: capacity)
 
         var cellOf: [ContentHash: Int] = [:]
         for (cell, slot) in slots.enumerated() { if let slot { cellOf[slot] = cell } }
@@ -70,32 +69,47 @@ public struct Arrangement: Sendable, Equatable {
     }
 
     /// Moves the photograph in one cell to another and pins it there — the drag.
-    ///
-    /// Onto an occupied cell it is a move within the sheet's order: the
-    /// photograph comes out of its cell, the gap closes, and it goes back in at
-    /// the target. Everything between the two cells shifts one place towards the
-    /// cell it left — to the right when dragged back, to the left when dragged
-    /// forward. Nothing leaves the sheet, and no cell becomes empty that was not
-    /// empty already. It is a removal and an insertion composed, so it follows
-    /// the removal rule for pins: a pin's cell follows its photograph.
-    ///
-    /// Onto an empty cell there is nothing to make room for, so the photograph is
-    /// simply placed there and the cell it left is empty.
-    ///
-    /// Dropping it back where it started is a cancelled drag, not a pin.
     public mutating func move(from source: Int, to target: Int) {
-        guard source != target,
-              slots.indices.contains(source), slots.indices.contains(target),
-              let photograph = slots[source]
-        else { return }
+        guard source != target, let photograph = photograph(at: source) else { return }
+        move([photograph], to: target)
+    }
 
-        if slots[target] == nil {
-            slots[target] = photograph
-            slots[source] = nil
-        } else {
-            slots.remove(at: source)
-            slots.insert(photograph, at: target)
-        }
+    /// Moves photographs to a cell and pins them there, in sheet order — the
+    /// drag, for one frame or for a whole selection.
+    ///
+    /// It is a removal and an insertion composed: the carried photographs come
+    /// out, the sheet closes up, and they go back in as one run starting at the
+    /// cell they were dropped on. Everything between shifts to make room — to
+    /// the right when the run is dragged back, to the left when it is dragged
+    /// forward. Nothing leaves the sheet: the count is conserved, so no drop can
+    /// push a photograph off the end.
+    ///
+    /// Dropped past the last photograph — onto the empty cells at the end — the
+    /// run lands at the end of the sequence rather than parking where the pointer
+    /// was. **Empty cells only ever trail**, on a sheet as in a collection, and
+    /// that is what `emptiesOnlyTrail` asserts.
+    ///
+    /// Pins follow the removal rule: a pin's cell follows its photograph. Being
+    /// put somewhere is deciding where it goes, so each photograph moved is
+    /// held there.
+    ///
+    /// Dropped where it already is, the run is a cancelled drag: nothing moves
+    /// and nothing is pinned.
+    public mutating func move(_ photographs: [ContentHash], to target: Int) {
+        let carriedIds = Set(photographs)
+        // Sheet order, and only what is actually on this sheet — the caller may
+        // hand over a selection in any order.
+        let carried = slots.compactMap { $0 }.filter { carriedIds.contains($0) }
+        // A drop in the dead space beyond the grid is not a drop on a cell.
+        guard !carried.isEmpty, slots.indices.contains(target) else { return }
+
+        let capacity = slots.count
+        var kept = slots.compactMap { $0 }.filter { !carriedIds.contains($0) }
+        kept.insert(contentsOf: carried, at: min(target, kept.count))
+
+        let next = fill(kept, capacity: capacity)
+        guard next != slots else { return }
+        slots = next
 
         var cellOf: [ContentHash: Int] = [:]
         for (cell, slot) in slots.enumerated() { if let slot { cellOf[slot] = cell } }
@@ -103,10 +117,37 @@ public struct Arrangement: Sendable, Equatable {
             cellOf[pin.photo].map { Pin(photo: pin.photo, cell: $0) } ?? pin
         }
 
-        // Putting a photograph somewhere is deciding where it goes, so it is
-        // held there.
-        pins.removeAll { $0.photo == photograph || $0.cell == target }
-        pins.append(Pin(photo: photograph, cell: target))
+        let landed = Set(carried.compactMap { cellOf[$0] })
+        // A pin held over from a larger grid keeps its cell, so it can still
+        // collide with where the run landed. Its photograph is not on this
+        // sheet; the run's is.
+        pins.removeAll { carriedIds.contains($0.photo) || landed.contains($0.cell) }
+        for photograph in carried {
+            guard let cell = cellOf[photograph] else { continue }
+            pins.append(Pin(photo: photograph, cell: cell))
+        }
+    }
+
+    /// Photographs from the front, empty cells after them — the one shape a
+    /// sheet's slots are ever in.
+    private func fill(_ photographs: [ContentHash], capacity: Int) -> [ContentHash?] {
+        let placed = photographs.prefix(capacity).map { Optional($0) }
+        return placed + repeatElement(nil, count: max(0, capacity - placed.count))
+    }
+
+    /// The sheet's invariant: no photograph sits after an empty cell.
+    ///
+    /// Every operation preserves it — a roll fills from the front, a removal
+    /// closes up, a drag re-inserts — so an empty cell always means "the
+    /// collection ran out", never "something was parked past here".
+    public var emptiesOnlyTrail: Bool {
+        let firstEmpty = slots.firstIndex(where: { $0 == nil }) ?? slots.count
+        return slots[firstEmpty...].allSatisfy { $0 == nil }
+    }
+
+    /// Closes up without taking anything out, and carries pins along.
+    private mutating func closeGaps() {
+        removeClosingGaps([])
     }
 
     /// The next cell holding a photograph, `step` cells at a time from `cell` —
@@ -128,6 +169,13 @@ public struct Arrangement: Sendable, Equatable {
     public func moving(from source: Int, to target: Int) -> Arrangement {
         var copy = self
         copy.move(from: source, to: target)
+        return copy
+    }
+
+    /// The same, for a run of photographs: the preview a multiple drag shows.
+    public func moving(_ photographs: [ContentHash], to target: Int) -> Arrangement {
+        var copy = self
+        copy.move(photographs, to: target)
         return copy
     }
 
@@ -186,7 +234,15 @@ public struct Arrangement: Sendable, Equatable {
             slots[cell] = next
         }
 
-        return Arrangement(slots: slots, pins: pins)
+        var rolled = Arrangement(slots: slots, pins: pins)
+        // A pin held over from a larger grid can sit past everything the
+        // collection can fill — pinned at cell 15 with six photographs. Honour
+        // it, then close up, so empty cells still only trail; the pin follows
+        // its photograph to where it actually landed, as it does on a removal.
+        if !rolled.emptiesOnlyTrail {
+            rolled.closeGaps()
+        }
+        return rolled
     }
 
     public static func rolled(

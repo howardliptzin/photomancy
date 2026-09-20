@@ -55,7 +55,7 @@ struct SheetView: View {
     /// which is how the shift is seen before it is committed.
     private var shown: Arrangement {
         guard let drag, let target = drag.target else { return controller.arrangement }
-        return controller.arrangement.moving(from: drag.source, to: target)
+        return controller.arrangement.moving(drag.carried, to: target)
     }
 
     var body: some View {

@@ -231,12 +231,121 @@ final class ArrangementTests: XCTestCase {
         XCTAssertEqual(arrangement.pins, [Pin(photo: ids[4], cell: 1)])
     }
 
-    /// Nothing to make room for, so nothing else moves.
-    func testDroppingOntoAnEmptyCellPlacesItWithoutShifting() {
+    /// Empty cells only ever trail, so a drop past the last photograph lands at
+    /// the end of the sequence rather than parking where the pointer was.
+    func testDroppingPastTheLastPhotographLandsAtTheEnd() {
         var (arrangement, id) = sheet(3, cells: 6)
         arrangement.move(from: 0, to: 4)
-        XCTAssertEqual(arrangement.slots, [nil, id[1], id[2], nil, id[0], nil])
+        XCTAssertEqual(arrangement.slots, [id[1], id[2], id[0], nil, nil, nil])
+        XCTAssertTrue(arrangement.isPinned(cell: 2))
+        XCTAssertTrue(arrangement.emptiesOnlyTrail)
+    }
+
+    // MARK: - Dragging a selection
+
+    /// The run starts at the cell it was dropped on, in sheet order.
+    func testARunLandsAtTheCellItWasDroppedOn() {
+        var (arrangement, id) = sheet(6)
+        arrangement.move([id[0], id[1]], to: 4)
+        XCTAssertEqual(arrangement.slots, [id[2], id[3], id[4], id[5], id[0], id[1]])
+    }
+
+    func testARunDraggedBackPushesTheOthersRight() {
+        var (arrangement, id) = sheet(6)
+        arrangement.move([id[3], id[5]], to: 1)
+        XCTAssertEqual(arrangement.slots, [id[0], id[3], id[5], id[1], id[2], id[4]])
+    }
+
+    /// Order is the sheet's, not the order the caller happened to hand over.
+    func testARunTravelsInSheetOrder() {
+        var (arrangement, id) = sheet(6)
+        arrangement.move([id[4], id[1]], to: 0)
+        XCTAssertEqual(arrangement.slots, [id[1], id[4], id[0], id[2], id[3], id[5]])
+    }
+
+    func testEveryPhotographInARunIsPinnedWhereItLands() {
+        var (arrangement, id) = sheet(6)
+        arrangement.move([id[0], id[1]], to: 3)
+        XCTAssertEqual(arrangement.pins.count, 2)
+        XCTAssertTrue(arrangement.isPinned(cell: 3))
         XCTAssertTrue(arrangement.isPinned(cell: 4))
+        XCTAssertEqual(arrangement.photograph(at: 3), id[0])
+        XCTAssertEqual(arrangement.photograph(at: 4), id[1])
+    }
+
+    func testARunKeepsEveryPhotographExactlyOnce() {
+        var (arrangement, id) = sheet(12)
+        let before = arrangement.slots.compactMap { $0 }
+        arrangement.move([id[9], id[2], id[11]], to: 5)
+        XCTAssertEqual(Set(arrangement.slots.compactMap { $0 }), Set(before))
+        XCTAssertEqual(arrangement.slots.compactMap { $0 }.count, before.count)
+    }
+
+    func testDroppingARunWhereItAlreadyIsChangesNothing() {
+        var (arrangement, id) = sheet(6)
+        let before = arrangement
+        arrangement.move([id[0], id[1], id[2]], to: 0)
+        XCTAssertEqual(arrangement, before, "a cancelled drag pins nothing")
+    }
+
+    func testARunDroppedPastTheLastPhotographLandsAtTheEnd() {
+        var (arrangement, id) = sheet(4, cells: 8)
+        arrangement.move([id[0], id[1]], to: 6)
+        XCTAssertEqual(arrangement.slots, [id[2], id[3], id[0], id[1], nil, nil, nil, nil])
+        XCTAssertTrue(arrangement.emptiesOnlyTrail)
+    }
+
+    // MARK: - Empty cells only ever trail
+
+    /// The invariant, against every operation in any order: an empty cell always
+    /// means the collection ran out, never that something was parked past it.
+    func testEveryOperationLeavesEmptyCellsAtTheEnd() {
+        let photographs = library(14)
+        for seed in UInt64(1)...40 {
+            var generator = SeededGenerator(seed: seed)
+            var arrangement = roll(photographs, cells: 20, seed: seed)
+            for step in 0..<12 {
+                let live = arrangement.slots.compactMap { $0 }
+                switch step % 4 {
+                case 0:
+                    if let photograph = live.randomElement(using: &generator),
+                       let cell = arrangement.slots.firstIndex(where: { $0 == photograph }) {
+                        arrangement.move(from: cell, to: Int.random(in: 0..<20, using: &generator))
+                    }
+                case 1:
+                    let run = live.shuffled(using: &generator).prefix(3)
+                    arrangement.move(Array(run), to: Int.random(in: 0..<20, using: &generator))
+                case 2:
+                    if let victim = live.randomElement(using: &generator) {
+                        arrangement.removeClosingGaps([victim])
+                    }
+                default:
+                    arrangement = Arrangement.rolled(
+                        photographs: photographs,
+                        pins: arrangement.pins,
+                        cellCount: 20,
+                        using: &generator
+                    )
+                }
+                XCTAssertTrue(
+                    arrangement.emptiesOnlyTrail,
+                    "seed \(seed), step \(step): \(arrangement.slots.map { $0 == nil ? "-" : "#" }.joined())"
+                )
+            }
+        }
+    }
+
+    /// A pin held over from a larger grid can sit past everything the collection
+    /// can fill. It is honoured, then the sheet closes up and the pin follows.
+    func testAPinBeyondTheCollectionDoesNotStrandEmptyCells() {
+        let photographs = library(4)
+        let held = photographs[2].id
+        let arrangement = roll(photographs, pins: [Pin(photo: held, cell: 15)], cells: 20)
+        XCTAssertTrue(arrangement.emptiesOnlyTrail)
+        XCTAssertEqual(arrangement.slots.compactMap { $0 }.count, 4)
+        let landed = arrangement.slots.firstIndex(where: { $0 == held })
+        XCTAssertNotNil(landed)
+        XCTAssertEqual(arrangement.pins.first(where: { $0.photo == held })?.cell, landed)
     }
 
     func testDroppingBackWhereItStartedChangesNothing() {
