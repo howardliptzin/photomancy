@@ -225,6 +225,16 @@ final class LibraryController {
         selectionAnchor = cell
     }
 
+    func select(_ cells: Set<Int>) {
+        selectedCells = cells
+        selectionAnchor = cells.min()
+    }
+
+    func clearSelection() {
+        selectedCells = []
+        selectionAnchor = nil
+    }
+
     /// P acts on everything selected. Mixed selections pin rather than unpin —
     /// the gesture should add the state you are asking for, not take it away
     /// from the ones that already have it.
@@ -356,6 +366,10 @@ final class LibraryController {
             cellCount: cellCount
         )
         stepping { commit(rolled, label: "Randomize") }
+        // A roll deals every unpinned photograph somewhere else, so a selection
+        // by cell would come back holding whatever happened to land there —
+        // which is not what anyone chose. Rolling starts from nothing selected.
+        clearSelection()
     }
 
     /// Option-click a photograph, or press P on the selected one.
@@ -367,17 +381,27 @@ final class LibraryController {
         persistPins()
     }
 
-    /// Drag a photograph onto a cell: it moves there and is pinned, and the cells
-    /// between shift one place to make room. An ordinary step, so ⌘Z puts the
+    /// Drag onto a cell: what is carried moves there and is pinned, and the
+    /// cells between shift to make room. A drag that started on a selected
+    /// photograph carries the whole selection, as every other action does —
+    /// they land as one run, in sheet order. An ordinary step, so ⌘Z puts the
     /// sheet back as it was.
     func move(from source: Int, to target: Int) {
+        let carried = cellsCarried(from: source).sorted()
+            .compactMap { arrangement.photograph(at: $0) }
+        guard !carried.isEmpty else { return }
+
         var next = arrangement
-        next.move(from: source, to: target)
+        next.move(carried, to: target)
         guard next != arrangement else { return }
-        stepping { commit(next, label: "Move") }
+        stepping { commit(next, label: carried.count > 1 ? "Move Photographs" : "Move") }
         // The selection is by cell, and the cells have just shifted under it.
-        // What you dragged is what you were working with.
-        select(target)
+        // What you dragged is what you were working with, so it stays chosen —
+        // at wherever it actually landed.
+        let landed = carried.compactMap { photograph in
+            next.slots.firstIndex(where: { $0 == photograph })
+        }
+        select(Set(landed))
         persistPins()
     }
 
@@ -389,6 +413,9 @@ final class LibraryController {
             cellCount: cellCount
         )
         stepping { commit(rolled, label: "Reset") }
+        // A reset is a roll with every pin released, so it starts from nothing
+        // selected for the same reason Randomize does.
+        clearSelection()
         persistPins()
     }
 

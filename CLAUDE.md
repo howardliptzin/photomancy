@@ -93,6 +93,13 @@ shaped by hand.
 - **An empty cell is background and nothing else.** No outline, no placeholder, no
   hint that a cell is there — identical on screen and on paper. A grid that is not
   full should look like a grid that is not full.
+- **Empty cells only ever trail.** Photographs fill from the first cell; an empty cell
+  always means the collection ran out, never that something was parked past it. A roll
+  fills from the front, a removal closes up, a drag re-inserts, and a pin held over from
+  a larger grid is honoured and then closed up with its pin following it. Settled
+  2026-09-20 and made total then: `Arrangement.emptiesOnlyTrail` asserts it, and a
+  randomized test checks it after every operation. It is what makes a cell index mean a
+  position in the sequence, which is what the drag rules below are written in terms of.
 - **The gap is the outer margin too.** One number everywhere: between cells and
   around the block. Cells flush against the window edge look wrong at a 1 px gap, and
   two numbers would make "padding, exact to the pixel" mean two things.
@@ -202,7 +209,7 @@ poor relation.
 | Edit ▸ Move to ▸, or right-click | Move selected to a collection (Add to ▸ in All Photos) |
 | Double-click | Lightbox |
 | `↩` | Open or close the lightbox |
-| Drag | Move to a cell and pin there |
+| Drag | Move to a cell and pin there — the whole selection if it started on one |
 | Drag onto the sidebar | Move to that collection — a new one on empty sidebar space |
 | `←` `→` | In lightbox: move through photos |
 | `Esc` | Close lightbox |
@@ -256,17 +263,30 @@ poor relation.
 - **`P` acts on the whole selection; a mixed selection pins rather than unpins.** The
   gesture should add the state being asked for, not take it from the frames that
   already have it.
-- **Dragging a photograph onto a cell moves it there and pins it; the cells between
-  shift one place.** A removal and an insertion composed — out of its cell, gap closed,
-  back in at the target — so it follows the removal rule: pins travel with their
-  photographs, nothing leaves the sheet, no cell empties that was not empty. Dragged
-  back the run shifts right, dragged forward it shifts left. Onto an empty cell there
-  is nothing to make room for, so it is simply placed. Dropped in the dead space or on
-  its own cell, nothing is recorded. An ordinary step, so `⌘Z` undoes it.
+- **Dragging onto a cell moves what is carried there and pins it; the cells between
+  shift to make room.** A removal and an insertion composed — out of their cells, gaps
+  closed, back in as one run starting at the cell dropped on — so it follows the removal
+  rule: pins travel with their photographs, nothing leaves the sheet, and the count is
+  conserved so no drop can push a photograph off the end. Dragged back the others shift
+  right, dragged forward they shift left.
+  - **A drag carries the whole selection when it started on a selected photograph**, and
+    the run lands in sheet order with every frame in it pinned where it lands. Added
+    2026-09-20, because every other action — `P`, `⌫`, `⌘⌫`, Move to ▸ — acts on the
+    selection, and the drag acting on one was the only gesture that did not: same
+    gesture, same meaning, everywhere. Moving a found run of three into place is the
+    loop, not layout drift.
+  - **Dropped past the last photograph it lands at the end of the sequence**, because
+    empty cells only ever trail. Reversed 2026-09-20: a drop on an empty cell used to
+    park the photograph there, which was the one gesture in the app that could open a
+    hole in the middle of a sheet. Parking a frame out in the empty space is gone with
+    it, and was not missed.
+  - Dropped in the dead space beyond the grid, or where it already sits, nothing is
+    recorded — a cancelled drag pins nothing. An ordinary step, so `⌘Z` undoes the whole
+    run at once.
 - **Removing closes the gap, and pinned frames move up with everything else.** That
   settles what a pin means: it holds a photograph across *rolls*, not at a fixed cell
-  for ever, so a pin's cell follows its photograph. Empty cells that were already
-  there stay put; only the gap the removal made is closed.
+  for ever, so a pin's cell follows its photograph. What is left keeps its order and
+  closes up from the front — empty cells only ever trail.
 - **The lightbox walks the sheet in cell order**, skipping empty cells. The sequence
   on the sheet is the one being divined; collection order is import order and means
   nothing here.
@@ -375,6 +395,11 @@ poor relation.
 - **Menu items carrying bare-key equivalents are disabled while a text field has the
   keyboard.** `Space`, `P`, `⌫` and `↩` are matched before a field ever sees them, so
   without this nobody could type a space into a collection name or delete a letter.
+- **Randomize and Reset clear the selection.** A roll deals every unpinned photograph
+  somewhere else, so a selection held by cell came back holding whatever happened to
+  land there — which is nothing anyone chose. Found in use 2026-09-20. The lightbox
+  follows the selection, so `Space` inside it closes it, which is correct: the
+  photograph being looked at is no longer in that cell.
 - Randomize animates cells to new positions (~200ms), respecting
   `prefers-reduced-motion`. The movement is how the eye registers what changed.
 
