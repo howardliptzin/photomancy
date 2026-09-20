@@ -31,7 +31,9 @@ the union of the collections.
 
 Since M4: move a selection into another collection, new or existing — from the Edit
 menu, a right-click on a photograph, or by dragging onto the sidebar — for when rolling
-one collection shows that some of it belongs somewhere else.
+one collection shows that some of it belongs somewhere else. And a drag carries the
+whole selection: several frames gather into a stack under the pointer and land as one
+run, in order, pinned where they are dropped.
 
 Much of this came from using it.
 
