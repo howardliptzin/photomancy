@@ -203,6 +203,10 @@ poor relation.
 
 - **A pin is marked with a white dot with a thin black outline, in the upper left
   corner of the frame.** One mark, one place, no variants.
+- **A selection is ringed in the system accent** — the blue every Mac list and icon
+  grid uses, at full opacity. Reversed 2026-09-20: a ring derived from the sheet
+  background was elegant and, on the grey preset, invisible, and it has to read while a
+  drag carries it. Unlike the pin mark, this is chrome and follows the platform.
 - **The shortcuts get a legend, two ways.** Every action is a menu item showing its key
   equivalent, and every toolbar and control-bar button's tooltip names its shortcut —
   the native baseline, which the menu bar needs anyway. Plus a `?` overlay over the
@@ -316,10 +320,14 @@ poor relation.
     nothing happens.
   - **A carried selection is seen leaving together** — found in use: with the rings
     hidden and only the dragged photograph moving, a drag of several read as dropping
-    the selection, though all of it went. So during a drag the rings travel with their
-    photographs, and once the pointer leaves the sheet everything carried gathers into a
-    small stack under it, with a count when there is more than one; back over the sheet
-    they return to their cells. The target row lights.
+    the selection, though all of it went. So the rings travel with their photographs,
+    and **a drag of more than one gathers into a small stack under the pointer from the
+    moment it starts**, in sheet order with the dragged one on top, with a Finder-style
+    count travelling with it. Revised 2026-09-20: the stack used to form only once the
+    pointer left the sheet, and until then a drag of several still read as a drag of
+    one. The cost, accepted: inside the sheet a drop on a cell still moves only the
+    dragged photograph, so the stack says what is being *carried*, not what a cell would
+    take. The target row lights.
   - **After a drop you stay on the source sheet, as after the menu** — weighed in use on
     2026-09-15. Following the gesture felt natural, but opening a collection clears the
     undo history, so the move would arrive un-undoable; following is one click on the
