@@ -3,9 +3,13 @@ import AppKit
 import OSLog
 import PhotomancyCore
 
+/// Usable from the print operation's own thread, unlike anything on the
+/// main-actor type below.
+let spikeLog = Logger(subsystem: AppPaths.bundleIdentifier, category: "spike")
+
 @MainActor
 enum SpikePrint {
-    static let log = Logger(subsystem: AppPaths.bundleIdentifier, category: "spike")
+    static let log = spikeLog
 
     /// Does a save panel open at all on the read-only entitlement?
     ///
@@ -32,6 +36,28 @@ enum SpikePrint {
         }
     }
 
+    /// Renders to a PDF without any panel — the output pass on its own thread,
+    /// which is what crashed, with nothing to click.
+    static func renderToContainer() {
+        guard let directory = try? AppPaths.applicationSupport() else { return }
+        let url = directory.appendingPathComponent("spike-auto.pdf")
+        let info = NSPrintInfo.shared.copy() as! NSPrintInfo
+        info.orientation = .landscape
+        info.horizontalPagination = .fit
+        info.verticalPagination = .fit
+        info.jobDisposition = .save
+        info.dictionary()[NSPrintInfo.AttributeKey.jobSavingURL] = url
+        let view = SpikeSheetView(frame: NSRect(origin: .zero, size: info.imageablePageBounds.size))
+        let operation = NSPrintOperation(view: view, printInfo: info)
+        operation.canSpawnSeparateThread = true
+        operation.showsPrintPanel = false
+        operation.showsProgressPanel = false
+        log.notice("spike: rendering to \(url.path, privacy: .public)")
+        let ok = operation.run()
+        let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int) ?? nil
+        log.notice("spike: render returned \(ok, privacy: .public), file \(size ?? -1, privacy: .public) bytes")
+    }
+
     static func run() {
         let info = NSPrintInfo.shared.copy() as! NSPrintInfo
         info.orientation = .landscape
@@ -56,17 +82,21 @@ enum SpikePrint {
     }
 }
 
+/// Holds nothing mutable and touches no app state, so every override AppKit may
+/// call while printing is `nonisolated`. Without this, Swift 6 traps the moment
+/// the print operation renders on its own thread — which is exactly what
+/// `canSpawnSeparateThread` asks it to do.
 final class SpikeSheetView: NSView {
-    override var isFlipped: Bool { true }
+    nonisolated override var isFlipped: Bool { true }
 
-    override func draw(_ dirtyRect: NSRect) {
+    nonisolated override func draw(_ dirtyRect: NSRect) {
         let toScreen = NSGraphicsContext.current?.isDrawingToScreen ?? false
         let current = NSPrintOperation.current
         let paper = current?.printInfo.paperSize ?? .zero
         let path = current?.printInfo.jobDisposition.rawValue ?? "-"
         let quality = current.map { $0.preferredRenderingQuality == .best ? "best" : "responsive" } ?? "none"
         let saveURL = (current?.printInfo.dictionary()[NSPrintInfo.AttributeKey.jobSavingURL] as? URL)?.lastPathComponent ?? "-"
-        Logger(subsystem: AppPaths.bundleIdentifier, category: "spike").notice(
+        spikeLog.notice(
             "spike draw: toScreen=\(toScreen, privacy: .public) main=\(Thread.isMainThread, privacy: .public) paper=\(paper.width, privacy: .public)x\(paper.height, privacy: .public) disposition=\(path, privacy: .public) quality=\(quality, privacy: .public) saveURL=\(saveURL, privacy: .public) bounds=\(self.bounds.width, privacy: .public)x\(self.bounds.height, privacy: .public)")
         NSColor(srgbRed: 0x93 / 255, green: 0x92 / 255, blue: 0x92 / 255, alpha: 1).setFill()
         bounds.fill()
