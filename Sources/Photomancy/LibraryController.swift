@@ -413,6 +413,9 @@ final class LibraryController {
             cellCount: cellCount
         )
         stepping { commit(rolled, label: "Reset") }
+        // A reset is a roll with every pin released, so it starts from nothing
+        // selected for the same reason Randomize does.
+        clearSelection()
         persistPins()
     }
 
