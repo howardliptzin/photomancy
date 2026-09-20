@@ -87,7 +87,12 @@ struct SheetView: View {
                     let cell = cells[item.cell]
                     let dragged = drag.flatMap { $0.photo == item.reference.id ? $0 : nil }
                     let rank = drag?.carried.firstIndex(of: item.reference.id)
-                    let gathered = drag?.isOut == true && rank != nil
+                    // A drag of more than one gathers from the moment it
+                    // starts, not at the sheet's edge: found in use on
+                    // 2026-09-20 — with the others left in their cells, a drag
+                    // of several read as dragging one until the pointer was
+                    // already over the sidebar.
+                    let gathered = rank != nil && (drag?.carried.count ?? 0) > 1
                     let place = placement(of: item, cell: cell, dragged: dragged, rank: rank, gathered: gathered, cells: cells)
 
                     SheetCell(
@@ -134,7 +139,7 @@ struct SheetView: View {
 
                 // How many are going, as Finder counts a drag — on the top of the
                 // stack, only when there is more than one.
-                if let drag, drag.isOut, drag.carried.count > 1 {
+                if let drag, drag.carried.count > 1 {
                     let edge = Self.stackEdge / 2
                     Text("\(drag.carried.count)")
                         .font(.caption.weight(.semibold))
@@ -202,9 +207,13 @@ struct SheetView: View {
         }
     }
 
+    /// The system accent, as every Mac list and icon grid marks a selection.
+    /// Derived from the sheet background it was elegant and, on the grey preset,
+    /// invisible — and a ring nobody can see is not a selection. It also has to
+    /// read while a drag carries it, which is when it matters most.
     private var selectionRing: some View {
         RoundedRectangle(cornerRadius: 2)
-            .strokeBorder(Color(settings.background.contrastingInk).opacity(0.55), lineWidth: 2)
+            .strokeBorder(Color.accentColor, lineWidth: 3)
             .allowsHitTesting(false)
     }
 
@@ -215,10 +224,12 @@ struct SheetView: View {
 
     /// Where a photograph is drawn, and at what size.
     ///
-    /// In its cell, normally. The dragged one follows the pointer. Out over the
-    /// sidebar, everything being carried gathers under the pointer, shrunk to a
-    /// small stack in sheet order with the dragged one on top — so a selection
-    /// is seen leaving together, not only the photograph under the pointer.
+    /// In its cell, normally. The dragged one follows the pointer. When more
+    /// than one is carried, everything gathers under the pointer for the whole
+    /// drag, shrunk to a small stack in sheet order with the dragged one on top
+    /// — so a selection is seen leaving together, not only the photograph under
+    /// the pointer. Dropped back on a cell only the dragged one moves, as ever;
+    /// the stack says what is being carried, not what a cell would take.
     private func placement(
         of item: Placement,
         cell: CGRect,
