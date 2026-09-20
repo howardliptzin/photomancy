@@ -202,9 +202,13 @@ struct SheetView: View {
         }
     }
 
+    /// The system accent, as every Mac list and icon grid marks a selection.
+    /// Derived from the sheet background it was elegant and, on the grey preset,
+    /// invisible — and a ring nobody can see is not a selection. It also has to
+    /// read while a drag carries it, which is when it matters most.
     private var selectionRing: some View {
         RoundedRectangle(cornerRadius: 2)
-            .strokeBorder(Color(settings.background.contrastingInk).opacity(0.55), lineWidth: 2)
+            .strokeBorder(Color.accentColor, lineWidth: 3)
             .allowsHitTesting(false)
     }
 
