@@ -87,14 +87,6 @@ struct PhotomancyApp: App {
                 )
             }
 
-            // M5 STEP 0 SPIKE — throwaway.
-            CommandGroup(replacing: .printItem) {
-                Button("Print…") { SpikePrint.run() }
-                    .keyboardShortcut("p", modifiers: .command)
-                Button("Spike: Save Panel") { SpikePrint.savePanel() }
-                Button("Spike: PDF to Container") { SpikePrint.renderToContainer() }
-            }
-
             CommandMenu("Sheet") {
                 Button("Randomize") { LibraryController.shared.randomize() }
                     .keyboardShortcut(.space, modifiers: [])
