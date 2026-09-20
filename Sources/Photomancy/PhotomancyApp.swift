@@ -91,6 +91,7 @@ struct PhotomancyApp: App {
             CommandGroup(replacing: .printItem) {
                 Button("Print…") { SpikePrint.run() }
                     .keyboardShortcut("p", modifiers: .command)
+                Button("Spike: Save Panel") { SpikePrint.savePanel() }
             }
 
             CommandMenu("Sheet") {
