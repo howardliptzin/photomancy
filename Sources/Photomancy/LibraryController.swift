@@ -780,44 +780,59 @@ final class LibraryController {
     /// Decoding originals happens later, in the output pass, on the thread
     /// AppKit spawns for it.
     func printSheet() async {
+        guard let job = buildPrintJob() else { return }
+
+        // Asked now rather than when the job runs: a missing photograph is a
+        // thing to go and fix, and finding out after choosing paper and
+        // pressing Print is finding out too late.
+        do {
+            try PrintImages.checkAvailable(job.placements, resolver: store.resolver)
+        } catch {
+            present(error)
+            return
+        }
+        run(await withPreviewFrames(job))
+    }
+
+    /// Everything one job needs, gathered on the main thread. Shared by ⌘P and
+    /// Export PDF… so the two cannot drift into printing different sheets.
+    private func buildPrintJob() -> SheetPrintJob? {
         let geometry = sheetGeometry(settings: settings, cellAspect: cellAspect, canvas: canvas)
-        guard !geometry.cells.isEmpty else { return }
+        guard !geometry.cells.isEmpty else { return nil }
 
         var placements: [PrintImages.Placement] = []
         for (cell, id) in arrangement.slots.prefix(geometry.cells.count).enumerated() {
             guard let id, let reference = reference(for: id) else { continue }
             placements.append(PrintImages.Placement(cell: cell, reference: reference))
         }
-        guard !placements.isEmpty else { return }
+        guard !placements.isEmpty else { return nil }
 
-        // Asked now rather than when the job runs: a missing photograph is a
-        // thing to go and fix, and finding out after choosing paper and
-        // pressing Print is finding out too late.
-        do {
-            try PrintImages.checkAvailable(placements, resolver: store.resolver)
-        } catch {
-            present(error)
-            return
-        }
-
-        var previewFrames: [SheetRenderer.Frame] = []
-        for placement in placements {
-            let cell = geometry.cells[placement.cell]
-            let pixels = ThumbnailSize.bucket(forCell: cell.size, scale: 2)
-            if let thumbnail = try? await cache.thumbnail(for: placement.reference, maxPixel: pixels) {
-                previewFrames.append(SheetRenderer.Frame(cell: placement.cell, image: thumbnail.image))
-            }
-        }
-
-        let job = SheetPrintJob(
+        return SheetPrintJob(
             geometry: geometry,
             background: settings.background,
             placements: placements,
-            previewFrames: previewFrames,
+            previewFrames: [],
             resolver: store.resolver,
             title: currentTitle
         )
-        run(job)
+    }
+
+    /// Thumbnails for the print panel's preview. Export needs none — it has no
+    /// preview, and everything it draws is decoded from the originals.
+    private func withPreviewFrames(_ job: SheetPrintJob) async -> SheetPrintJob {
+        var frames: [SheetRenderer.Frame] = []
+        for placement in job.placements {
+            let cell = job.geometry.cells[placement.cell]
+            let pixels = ThumbnailSize.bucket(forCell: cell.size, scale: 2)
+            if let thumbnail = try? await cache.thumbnail(for: placement.reference, maxPixel: pixels) {
+                frames.append(SheetRenderer.Frame(cell: placement.cell, image: thumbnail.image))
+            }
+        }
+        return SheetPrintJob(
+            geometry: job.geometry, background: job.background,
+            placements: job.placements, previewFrames: frames,
+            resolver: job.resolver, title: job.title
+        )
     }
 
     private func run(_ job: SheetPrintJob) {
@@ -864,6 +879,57 @@ final class LibraryController {
             didRun: #selector(SheetPrintDelegate.printOperationDidRun(_:success:contextInfo:)),
             contextInfo: nil
         )
+    }
+
+    /// File ▸ Export PDF… — the same renderer and the same images as ⌘P, to a
+    /// file instead of a printer.
+    ///
+    /// In scope because the read-write entitlement is already spent: step 0
+    /// found that the print panel's own Save as PDF does not work without it,
+    /// so the cost of this command was paid before it was written.
+    func exportPDF() async {
+        guard let job = buildPrintJob() else { return }
+
+        do {
+            try PrintImages.checkAvailable(job.placements, resolver: store.resolver)
+        } catch {
+            present(error)
+            return
+        }
+
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.pdf]
+        panel.nameFieldStringValue = "\(job.title).pdf"
+        panel.message = "Export this sheet as a PDF."
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        let paper = settings.paper
+        do {
+            // Decoding originals is the slow part — about a second for twenty
+            // photographs — and it has no business on the main thread just
+            // because there is no print operation to spawn one this time.
+            let data = try await Task.detached(priority: .userInitiated) { () -> Data in
+                let page = CGRect(origin: .zero, size: paper.points)
+                let frames = try PrintImages.frames(
+                    for: job.placements,
+                    geometry: job.geometry,
+                    printable: page,
+                    resolver: job.resolver
+                )
+                let renderer = SheetRenderer(
+                    geometry: job.geometry, background: job.background, frames: frames
+                )
+                guard let data = renderer.pdf(pageSize: paper.points, title: job.title) else {
+                    throw PhotoAccessError.decodeFailed(name: job.title)
+                }
+                return data
+            }.value
+
+            try data.write(to: url)
+            log.notice("export: wrote \(data.count, privacy: .public) bytes to \(url.lastPathComponent, privacy: .public)")
+        } catch {
+            present(error)
+        }
     }
 
     private func present(_ error: any Error) {

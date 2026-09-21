@@ -37,6 +37,12 @@ struct PhotomancyApp: App {
                 }
                 .keyboardShortcut("p", modifiers: .command)
                 .disabled(!LibraryController.shared.canPrint)
+
+                Button("Export PDF…") {
+                    Task { await LibraryController.shared.exportPDF() }
+                }
+                .keyboardShortcut("e", modifiers: [.command, .shift])
+                .disabled(!LibraryController.shared.canPrint)
             }
 
             // The native baseline for discovering the keyboard: every action is

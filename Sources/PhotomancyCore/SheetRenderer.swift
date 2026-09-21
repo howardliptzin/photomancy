@@ -111,3 +111,45 @@ public struct SheetRenderer: @unchecked Sendable {
         }
     }
 }
+
+extension SheetRenderer {
+
+    /// This sheet as a one-page PDF.
+    ///
+    /// The same renderer the printer gets, into a PDF context instead of a
+    /// printer's. One page, no pagination, no page breaks — a sheet is a sheet.
+    ///
+    /// - Parameters:
+    ///   - pageSize: The page, in points. The collection's paper.
+    ///   - printable: Where on that page the block goes. Defaults to the whole
+    ///     page, which is the right default for a document rather than a print
+    ///     job: an exported PDF has no printer, and baking in the margins of
+    ///     whichever printer happened to be selected would make the same
+    ///     collection export differently on different machines. The block
+    ///     carries its own outer gap, so this is not edge-to-edge unless the
+    ///     gap is zero.
+    ///   - title: Recorded in the PDF's metadata.
+    /// - Returns: `nil` only if Quartz refuses a context, which is not a case
+    ///   the caller can do anything about beyond reporting it.
+    public func pdf(pageSize: CGSize, printable: CGRect? = nil, title: String? = nil) -> Data? {
+        guard pageSize.width.isFinite, pageSize.height.isFinite,
+              pageSize.width > 0, pageSize.height > 0 else { return nil }
+
+        let data = NSMutableData()
+        var box = CGRect(origin: .zero, size: pageSize)
+        guard let consumer = CGDataConsumer(data: data) else { return nil }
+
+        var info: [CFString: Any] = [:]
+        if let title { info[kCGPDFContextTitle] = title }
+        guard let context = CGContext(consumer: consumer, mediaBox: &box, info as CFDictionary) else {
+            return nil
+        }
+
+        context.beginPDFPage(nil)
+        draw(in: context, onto: printable ?? box)
+        context.endPDFPage()
+        context.closePDF()
+
+        return data as Data
+    }
+}

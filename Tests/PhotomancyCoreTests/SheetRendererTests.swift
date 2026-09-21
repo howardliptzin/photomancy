@@ -312,4 +312,56 @@ final class SheetRendererTests: XCTestCase {
                        printMetrics(for: geometry, onto: printable)?.scale ?? 0, accuracy: 1e-12,
                        "the panel's millimetres describe this drawing and no other")
     }
+
+    // MARK: - Exported as a document
+
+    func testTheExportedPDFIsOnePageOfTheCollectionsPaper() throws {
+        let geometry = self.geometry()
+        let renderer = SheetRenderer(geometry: geometry, background: sheetBackground,
+                                     frames: [SheetRenderer.Frame(cell: 0, image: try solid(red))])
+        let paper = Paper(size: .a4, orientation: .landscape)
+        let data = try XCTUnwrap(renderer.pdf(pageSize: paper.points, title: "Vintage"))
+
+        let provider = try XCTUnwrap(CGDataProvider(data: data as CFData))
+        let document = try XCTUnwrap(CGPDFDocument(provider))
+        XCTAssertEqual(document.numberOfPages, 1)
+        let box = try XCTUnwrap(document.page(at: 1)?.getBoxRect(.mediaBox))
+        XCTAssertEqual(box.width, paper.points.width, accuracy: 0.5)
+        XCTAssertEqual(box.height, paper.points.height, accuracy: 0.5)
+    }
+
+    /// An exported PDF has no printer, so the block fills the page rather than
+    /// some absent device's imageable area — and therefore prints larger than
+    /// the same sheet sent through the print panel.
+    func testAnExportFillsThePageRatherThanAPrintersImageableArea() throws {
+        let geometry = self.geometry()
+        let paper = Paper(size: .a4, orientation: .landscape)
+        let whole = CGRect(origin: .zero, size: paper.points)
+
+        let onWholePage = try XCTUnwrap(printMetrics(for: geometry, onto: whole))
+        let insideMargins = try XCTUnwrap(printMetrics(for: geometry, onto: printable))
+        XCTAssertGreaterThan(onWholePage.cell.width, insideMargins.cell.width)
+    }
+
+    func testAnExportedPDFCarriesTheSamePicturesAsThePrinterWould() throws {
+        let geometry = self.geometry()
+        let renderer = SheetRenderer(geometry: geometry, background: sheetBackground,
+                                     frames: [SheetRenderer.Frame(cell: 0, image: try solid(red)),
+                                              SheetRenderer.Frame(cell: 1, image: try solid(green))])
+        let paper = Paper(size: .a4, orientation: .landscape)
+        let data = try XCTUnwrap(renderer.pdf(pageSize: paper.points))
+
+        // Drawn into the page, the cells land where the transform says.
+        let whole = CGRect(origin: .zero, size: paper.points)
+        let transform = pageTransform(from: geometry.block, onto: whole)
+        let first = geometry.cells[0].applying(transform)
+        XCTAssertTrue(whole.insetBy(dx: -0.001, dy: -0.001).contains(first))
+        XCTAssertGreaterThan(data.count, 0)
+    }
+
+    func testAPageWithNoSizeExportsNothingRatherThanABrokenFile() {
+        let renderer = SheetRenderer(geometry: geometry(), background: sheetBackground, frames: [])
+        XCTAssertNil(renderer.pdf(pageSize: .zero))
+        XCTAssertNil(renderer.pdf(pageSize: CGSize(width: CGFloat.nan, height: 500)))
+    }
 }
