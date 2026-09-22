@@ -10,12 +10,12 @@ extension Color {
     }
 }
 
-/// The sheet: a true rows × columns grid, positioned from `layout()`.
+/// The sheet: a true rows × columns grid, positioned from `sheetGeometry()`.
 ///
 /// Deliberately not a `LazyVGrid`. Its geometry would be invisible to the print
 /// path and the two would drift apart, which surfaces as "it didn't print the
-/// way it looked". Every rectangle here is one the print path will be handed
-/// unchanged in M5.
+/// way it looked". Every rectangle here is one the print path is handed
+/// unchanged, under one uniform transform onto the page.
 struct SheetView: View {
 
     @Environment(LibraryController.self) private var controller
@@ -60,16 +60,18 @@ struct SheetView: View {
 
     var body: some View {
         GeometryReader { proxy in
-            // A window made smaller than the stored gap allows lays out at the
-            // largest gap that still shows the cells, rather than going blank.
-            let gap = min(settings.gap, maximumGap(cols: settings.columns, rows: settings.rows, canvas: proxy.size))
-            let cells = layout(
-                cols: settings.columns,
-                rows: settings.rows,
-                gap: gap,
+            // One geometry for the screen and the page. It clamps the gap for
+            // a window too small for the stored one — which is why the print
+            // path calls this and never `layout()` directly: laying out at the
+            // stored gap there would print a sheet that is not the one on
+            // screen, in exactly that case.
+            let geometry = sheetGeometry(
+                settings: settings,
                 cellAspect: controller.cellAspect,
                 canvas: proxy.size
             )
+            let gap = geometry.gap
+            let cells = geometry.cells
 
             let shown = self.shown
 

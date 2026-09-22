@@ -115,6 +115,259 @@ if let flag = CommandLine.arguments.firstIndex(of: "--render-layout") {
     exit(0)
 }
 
+// ── does the ink land where the geometry says? ───────────────────────────────
+//
+// Step 6 of M5. Everything up to here is checked against arithmetic: the tests
+// prove `pageTransform` maps rectangles exactly, and that the renderer fills
+// the rectangles it is given. None of that proves the two are wired together,
+// or that Quartz puts a photograph where the rectangle is. This renders a real
+// sheet from real photographs through the real print path, rasterises the PDF
+// at 300 ppi, finds each photograph's edges in the pixels, and compares them
+// with the window's rectangles under the transform.
+//
+// Edges are found by rendering the same page twice — once with the
+// photographs, once with background alone — and taking every pixel that
+// differs. That is what makes the measurement work on a black sheet, where a
+// photograph's dark edge is otherwise indistinguishable from the background.
+// A row that happens to match the background exactly is still invisible, so
+// the script reports the measured deviation rather than only a verdict.
+//
+//   photomancy-bench --verify-print <photo-folder> [--out <dir>]
+if let flag = CommandLine.arguments.firstIndex(of: "--verify-print") {
+    let rest = Array(CommandLine.arguments.dropFirst(flag + 1))
+    guard let folder = rest.first(where: { !$0.hasPrefix("--") }) else {
+        print("usage: --verify-print <photo-folder> [--out <dir>]")
+        exit(2)
+    }
+    let outDirectory = rest.firstIndex(of: "--out").flatMap { index -> URL? in
+        index + 1 < rest.count ? URL(fileURLWithPath: rest[index + 1]) : nil
+    }
+
+    let urls = Importer.expand([URL(fileURLWithPath: folder)])
+    guard !urls.isEmpty else {
+        print("no photographs in \(folder)")
+        exit(2)
+    }
+    let resolver = BookmarkResolver()
+    let references = urls.compactMap { try? Importer.makeReference(for: $0) }
+    guard !references.isEmpty else {
+        print("could not read any photograph in \(folder)")
+        exit(2)
+    }
+
+    /// 300 ppi, as the plan sets the standard.
+    let pixelsPerPoint = 300.0 / 72.0
+
+    struct Configuration {
+        let name: String
+        let settings: SheetSettings
+        let aspect: Double?
+        let canvas: CGSize
+    }
+
+    let configurations = [
+        Configuration(
+            name: "5 × 4, gap 12, square, white",
+            settings: SheetSettings(columns: 5, rows: 4, gap: 12, backgroundHex: "#FFFFFF"),
+            aspect: 1, canvas: CGSize(width: 1600, height: 900)
+        ),
+        Configuration(
+            name: "8 × 8, gap 1, square, white",
+            settings: SheetSettings(columns: 8, rows: 8, gap: 1, backgroundHex: "#FFFFFF"),
+            aspect: 1, canvas: CGSize(width: 1600, height: 900)
+        ),
+        Configuration(
+            name: "3 × 2, gap 4, 3:2, black",
+            settings: SheetSettings(columns: 3, rows: 2, gap: 4, backgroundHex: "#000000"),
+            aspect: 1.5, canvas: CGSize(width: 1600, height: 900)
+        ),
+    ]
+
+    /// The rasterised page, as sRGB bytes.
+    func rasterise(_ pdf: Data, pageSize: CGSize) -> (pixels: [UInt8], width: Int, height: Int)? {
+        guard let provider = CGDataProvider(data: pdf as CFData),
+              let document = CGPDFDocument(provider),
+              let page = document.page(at: 1) else { return nil }
+        let width = Int((pageSize.width * pixelsPerPoint).rounded())
+        let height = Int((pageSize.height * pixelsPerPoint).rounded())
+        var pixels = [UInt8](repeating: 0, count: width * height * 4)
+        pixels.withUnsafeMutableBytes { buffer in
+            guard let context = CGContext(
+                data: buffer.baseAddress, width: width, height: height,
+                bitsPerComponent: 8, bytesPerRow: width * 4,
+                space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue
+            ) else { return }
+            context.scaleBy(x: pixelsPerPoint, y: pixelsPerPoint)
+            context.drawPDFPage(page)
+        }
+        return (pixels, width, height)
+    }
+
+    var worstOverall = 0.0
+    var failures = 0
+
+    for configuration in configurations {
+        let geometry = sheetGeometry(
+            settings: configuration.settings,
+            cellAspect: configuration.aspect,
+            canvas: configuration.canvas
+        )
+        let paper = configuration.settings.paper
+        let page = CGRect(origin: .zero, size: paper.points)
+        let transform = pageTransform(from: geometry.block, onto: page)
+
+        // As many photographs as the grid holds, repeating the folder only
+        // because a test folder is smaller than an 8 × 8 sheet. The app never
+        // repeats a photograph; here it is filler for a geometry measurement.
+        var placements: [PrintImages.Placement] = []
+        for cell in 0..<geometry.cells.count {
+            placements.append(PrintImages.Placement(cell: cell, reference: references[cell % references.count]))
+        }
+
+        guard let frames = try? PrintImages.frames(
+            for: placements, geometry: geometry, printable: page, resolver: resolver
+        ) else {
+            print("\(configuration.name): could not decode the originals")
+            failures += 1
+            continue
+        }
+
+        let background = configuration.settings.background
+        let withPhotographs = SheetRenderer(geometry: geometry, background: background, frames: frames)
+        let bare = SheetRenderer(geometry: geometry, background: background, frames: [])
+        guard let inked = withPhotographs.pdf(pageSize: paper.points),
+              let empty = bare.pdf(pageSize: paper.points),
+              let a = rasterise(inked, pageSize: paper.points),
+              let b = rasterise(empty, pageSize: paper.points) else {
+            print("\(configuration.name): could not rasterise")
+            failures += 1
+            continue
+        }
+
+        if let outDirectory {
+            try? FileManager.default.createDirectory(at: outDirectory, withIntermediateDirectories: true)
+            let name = configuration.name.replacingOccurrences(of: " ", with: "-")
+                .replacingOccurrences(of: ",", with: "").replacingOccurrences(of: "×", with: "x")
+            try? inked.write(to: outDirectory.appendingPathComponent("\(name).pdf"))
+        }
+
+        /// Every pixel that the photographs put on the page.
+        func isInk(_ x: Int, _ y: Int) -> Bool {
+            let offset = (y * a.width + x) * 4
+            return abs(Int(a.pixels[offset]) - Int(b.pixels[offset])) > 8
+                || abs(Int(a.pixels[offset + 1]) - Int(b.pixels[offset + 1])) > 8
+                || abs(Int(a.pixels[offset + 2]) - Int(b.pixels[offset + 2])) > 8
+        }
+
+        var worst = 0.0
+        var worstCell = -1
+        var ambiguous = 0
+        var expectedRects: [CGRect] = []
+
+        for frame in frames {
+            let cell = geometry.cells[frame.cell].applying(transform)
+            let aspect = Double(frame.image.width) / Double(frame.image.height)
+            let expected = fitted(aspectRatio: aspect, in: cell)
+            expectedRects.append(expected)
+
+            // In pixels, with y measured down the bitmap rather than up the page.
+            let left = expected.minX * pixelsPerPoint
+            let right = expected.maxX * pixelsPerPoint
+            let top = (paper.points.height - expected.maxY) * pixelsPerPoint
+            let bottom = (paper.points.height - expected.minY) * pixelsPerPoint
+
+            // Search the cell, not a fixed margin around the photograph.
+            //
+            // A generous margin was the first attempt and it measured the
+            // neighbours: at these gaps the next photograph is only a few
+            // pixels away, so every cell reported an error the size of the
+            // search window. A photograph is fitted inside its cell and cells
+            // are a gap apart, so the cell plus one pixel cannot reach a
+            // neighbour — and a photograph that missed its cell entirely
+            // leaves no ink here, which is counted and reported.
+            let cellLeft = cell.minX * pixelsPerPoint
+            let cellRight = cell.maxX * pixelsPerPoint
+            let cellTop = (paper.points.height - cell.maxY) * pixelsPerPoint
+            let cellBottom = (paper.points.height - cell.minY) * pixelsPerPoint
+            let x0 = max(0, Int(cellLeft) - 1), x1 = min(a.width - 1, Int(cellRight) + 1)
+            let y0 = max(0, Int(cellTop) - 1), y1 = min(a.height - 1, Int(cellBottom) + 1)
+            guard x0 <= x1, y0 <= y1 else { ambiguous += 1; continue }
+
+            var minX = Int.max, maxX = Int.min, minY = Int.max, maxY = Int.min
+            for y in y0...y1 {
+                for x in x0...x1 where isInk(x, y) {
+                    minX = min(minX, x); maxX = max(maxX, x)
+                    minY = min(minY, y); maxY = max(maxY, y)
+                }
+            }
+            guard minX <= maxX else {
+                ambiguous += 1
+                continue
+            }
+
+            // Ink fills whole pixels, so an edge at 100.4 lights pixel 100 and
+            // the far edge at 200.6 lights pixel 200 — one pixel of slack in
+            // each direction is the measurement, not an error. Quartz also
+            // antialiases an image's edge, which can put a trace of ink one
+            // pixel further out again. Measured floor on a correct render is
+            // 1.3 px, which is 0.11 mm at 300 ppi; the gate below is set at 2
+            // to sit above that, and NOT because anything needed loosening —
+            // a displacement of half a point, 0.18 mm, measures 2.8 px here
+            // and leaves thousands of stray pixels.
+            let deviations = [
+                abs(Double(minX) - left), abs(Double(maxX + 1) - right),
+                abs(Double(minY) - top), abs(Double(maxY + 1) - bottom),
+            ]
+            if let cellWorst = deviations.max(), cellWorst > worst {
+                worst = cellWorst
+                worstCell = frame.cell
+            }
+        }
+
+        // Nothing may be drawn outside the photographs' own rectangles: no
+        // photograph overflowing its cell, no second copy anywhere, no ink in
+        // a gap. Measured over the whole page, which is the half the per-cell
+        // search cannot see.
+        let allowed = expectedRects.map { rect -> (Int, Int, Int, Int) in
+            (Int(rect.minX * pixelsPerPoint) - 1, Int(rect.maxX * pixelsPerPoint) + 1,
+             Int((paper.points.height - rect.maxY) * pixelsPerPoint) - 1,
+             Int((paper.points.height - rect.minY) * pixelsPerPoint) + 1)
+        }
+        var stray = 0
+        for y in 0..<a.height {
+            for x in 0..<a.width where isInk(x, y) {
+                if !allowed.contains(where: { x >= $0.0 && x <= $0.1 && y >= $0.2 && y <= $0.3 }) {
+                    stray += 1
+                }
+            }
+        }
+
+        worstOverall = max(worstOverall, worst)
+        let ok = worst <= 2.0 && stray == 0
+        if !ok { failures += 1 }
+        let name = configuration.name.padding(toLength: 30, withPad: " ", startingAt: 0)
+        let metrics = printMetrics(for: geometry, onto: page)
+        print(String(
+            format: "%@ %2d cells  cell %.1f × %.1f mm  worst edge %.2f px  stray %d  %@",
+            name, frames.count,
+            metrics?.cell.width ?? 0, metrics?.cell.height ?? 0,
+            worst, stray, ok ? "ok" : "OFF"
+        ))
+        if worst > 2.0 { print("    worst at cell \(worstCell)") }
+        if ambiguous > 0 { print("    \(ambiguous) photographs left no measurable ink — same colour as the sheet") }
+    }
+
+    print("")
+    if failures == 0 {
+        print(String(format: "PASS — every photograph within %.2f px of its rectangle at 300 ppi (%.3f mm), no stray ink",
+                     worstOverall, worstOverall / 300 * 25.4))
+        exit(0)
+    }
+    print(String(format: "FAIL — %d configurations off, worst %.2f px", failures, worstOverall))
+    exit(1)
+}
+
 let options = parseOptions()
 guard !options.paths.isEmpty else {
     print("usage: photomancy-bench <file-or-folder>... [--size N] [--count N]")

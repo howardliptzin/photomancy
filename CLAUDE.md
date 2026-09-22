@@ -13,14 +13,20 @@ Read it before writing code. Section numbers below refer to it.
 
 **M5 plan:** https://claude.ai/artifact/V66mrd8m3FsydyaBuFop4Z
 
-**Status:** M1–M4 complete, merged to `main` and in daily use (M4 on 2026-09-15).
-Import and collections, bookmarks, the thumbnail cache, `layout()` and the sheet, the
+**Status:** M1–M5 complete, merged to `main` and in daily use (M4 on 2026-09-15,
+M5 on 2026-09-22).
+Import and collections, bookmarks, the thumbnail cache, `sheetGeometry()` and the sheet, the
 loop — randomize, select, pin, remove, undo — then drag to position, the lightbox, All
 Photos as the union of the collections, and the settings bar. After M4, found in use and
 merged the same day: moving photographs between collections, by menu and by dragging
 onto the sidebar. Using it reversed several settled decisions, which is why each
-milestone stops for real use before the next. **Next is M5: print and PDF.** Carried
-into it, still unbuilt: the relink flow for a photograph that has moved (§07), and
+milestone stops for real use before the next. **M5, print and PDF, merged on
+2026-09-22**: ⌘P and the print panel, Export PDF…, originals decoded at 360 ppi for
+the paper finally chosen, and `Scripts/verify-print.sh`, which checks the printed PDF
+against the window's own rectangles. Proven on paper — a sheet measured with a ruler
+matches the millimetres the print dialog states. Still part of M5, on their own
+branches, and required before any beta: the relink flow for a photograph that has
+moved (§07) — strictly by content, a re-exported edit is a different photograph — and
 deriving the memory cache limit from window area.
 
 ## What this is
@@ -45,14 +51,35 @@ shaped by hand.
 
 ## Architecture — settled
 
-- **One pure `layout()` function** returns cell rectangles from
-  `(cols, rows, gap, cellAspect, canvas)`. Screen positions views with them; print
-  draws into a `CGContext` with them. Geometry shared, drawing not.
+- **One pure `sheetGeometry()` function** returns the cells, the gap they were laid
+  out at, and the block they occupy, from `(settings, cellAspect, canvas)` — over
+  `layout()`, which still does the arithmetic. Screen positions views with the
+  rectangles; print draws into a `CGContext` with the same ones. Geometry shared,
+  drawing not. **Both callers go through `sheetGeometry()` and never `layout()`
+  directly**, because it is what clamps the gap for a window too small for the stored
+  one: called with the stored gap instead, print would lay out a sheet that is not the
+  one on screen, in exactly that case.
 - **The canvas is the window, not the page.** The sheet fills the window and
   reflows live as it is resized. Print does not recompute geometry: it takes the
-  rectangles `layout()` already produced for the window and applies one uniform
-  scale-and-translate onto the page's printable rect. Exact by construction rather
-  than by discipline. Still one page, still no pagination, and no page breaks.
+  rectangles `sheetGeometry()` already produced for the window and applies one uniform
+  scale-and-translate that fits the **grid block** — the cells and their outer gap —
+  onto the page's printable rect. The window's dead space is not part of the
+  composition and is not printed (settled 2026-09-19: at a wide window with square
+  cells it made every photograph 59% smaller for nothing). Exact by construction
+  rather than by discipline. Still one page, still no pagination, and no page breaks.
+- **The flip lives inside `pageTransform`, and the transform is applied to the
+  rectangles rather than concatenated into the context.** The screen's origin is at the
+  top left and Quartz's at the bottom left, and a context drawing under that matrix
+  renders every photograph upside down while every rectangle still lands exactly right.
+  Mutation-tested on 2026-09-20: of eleven renderer tests, concatenating the transform
+  is caught by *one* — the two-tone photograph — and inverting the flip's sign fails
+  eight. Both tests earn their place.
+- **An export fills the page; ⌘P fills the printer's imageable area.** An exported PDF
+  has no printer, and baking in the margins of whichever one happened to be selected
+  would make the same collection export differently on different machines. Both
+  specifications stay reachable without a setting: ⌘P's own Save as PDF is the
+  printer-margin route, and an exported PDF can be scaled at print time. Settled in use
+  2026-09-21.
 - **The grid block scales; the cell shape is held.** Filling the window means cells
   grow as large as they can while keeping their shape, centred, with dead space at
   two window edges. Cells never distort to fit a window. Screen space is free.
@@ -104,11 +131,13 @@ shaped by hand.
   reshape at least corresponds to something the person just did.
 - **The gap is pixels on screen and proportional on paper.** Printing scales the
   sheet uniformly, so a 12 px gap is not a fixed physical measure — it is
-  `gap ÷ window width × page width`, and it changes with the window. Report the
+  `gap ÷ block width × printed block width`, and it changes with the window. Report the
   resulting millimetres in the print dialog instead of pretending otherwise.
 - **Paper is the print target**, remembered per collection, starting at **A4
-  landscape** — which makes the default output a contact sheet. It does not shape
-  the screen; it is consulted only when scaling a sheet onto a page.
+  landscape** — which makes the default output a contact sheet. Whatever paper the
+  print panel ends on is remembered, not only A4 and Letter, under new keys: the old
+  `size` key stays readable so a reverted build still loads the library. It does not
+  shape the screen; it is consulted only when scaling a sheet onto a page.
 - **Collections, pins and the collection that was open survive a quit.** This is the
   point of the bookmarks and the store, and it is not negotiable. A pin records the
   photograph *and its cell*, so pinned frames return where they were left; the
@@ -122,7 +151,11 @@ shaped by hand.
   intact library.
 - **Never `LazyVGrid` for the sheet** — its geometry is invisible to the print path
   and the two will drift.
-- **Print draws from full-resolution images**, never screen thumbnails.
+- **Print draws from the originals, decoded at the size they print: 360 pixels per
+  inch, never past the original.** Never from the thumbnail cache, never from a
+  camera's embedded preview — only a `.fullDecode`. The print panel's *preview* is a
+  screen and draws thumbnails; only the output pass, for the paper finally chosen,
+  decodes originals, off the main thread.
 - **Security-scoped bookmarks** stored at import and resolved before every read.
   Without this, collections are empty on second launch. Build it right on day one.
 - **Bookmarks are created with `.securityScopeAllowOnlyReadAccess`**, never
@@ -171,7 +204,16 @@ shaped by hand.
 All four are met. `Scripts/verify-relaunch.sh` is the standing regression for (2) and
 should be run after anything that touches import, the store, or the cache — it deletes
 the thumbnail cache before relaunching, which is the step that makes it mean anything.
-**It also deletes the app's whole library.** On a machine with real collections, copy
+`Scripts/verify-print.sh` is the standing regression for the print path and should be
+run after anything that touches geometry, the transform or the renderer. It renders real
+photographs, rasterises the PDF at 300 ppi and compares each photograph's edges with the
+window's rectangles. Two numbers: *worst edge* is about 1.2 px on a correct render — pixel
+quantisation plus Quartz's edge antialiasing, 0.11 mm at 300 ppi — and *stray*, ink
+outside any photograph's rectangle, is the sharp one and is zero. Displacing every
+photograph by half a point takes stray into the thousands. It needs no library and
+destroys nothing.
+
+**`verify-relaunch.sh` also deletes the app's whole library.** On a machine with real collections, copy
 the container's `Data` folder out with `ditto` first and put it back afterwards. The
 container's own `.com.apple.containermanagerd.metadata.plist` is protected by macOS —
 it can be neither copied nor deleted, and the script's `rm` of the container fails on
@@ -207,6 +249,7 @@ poor relation.
 | `⇧⌘R` | Rename the collection — or double-click it |
 | `?` | Show the keyboard legend — `Esc` closes it |
 | `⌘P` | Print (also yields PDF) |
+| `⇧⌘E` | Export PDF… — the sheet to a file, filling the page |
 
 - **A pin is marked with a white dot with a thin black outline, in the upper left
   corner of the frame.** One mark, one place, no variants.
@@ -424,7 +467,8 @@ or because it is cheap. Features are added after release only on enough user req
 - **Use `/usr/bin/log`, never bare `log`** — `log` is a zsh builtin, so `log show`
   silently returns nothing from an interactive shell and every check that reads the
   app's diagnostics quietly passes for the wrong reason.
-- **Push correctness into pure, testable functions** — `layout()`, hashing, cache keys.
+- **Push correctness into pure, testable functions** — `sheetGeometry()`,
+  `pageTransform()`, `SheetRenderer`, hashing, cache keys.
   I can verify those alone with XCTest; I cannot inspect a running SwiftUI view the
   way I can a DOM. Thin views, tested logic.
 - **End every exchange with `./Scripts/run.sh`** so there is always one thing to
@@ -477,9 +521,6 @@ or because it is cheap. Features are added after release only on enough user req
 
 ## Unsettled — ask, don't assume
 
-- **The four M5 questions in the M5 plan:** how M4 and Move to Collection feel in use;
-  whether print scales the window or the grid block; what "full resolution" means for
-  print; whether Export PDF… is worth a read-write entitlement.
 - **What happens to the free `.dmg` after the beta.** When a free build is as convenient
   as the Store copy, the Store becomes a tip jar: about 290,000 people run Maccy's free,
   self-updating build, while its $9.99 Store listing has too few ratings to show. FSNotes'

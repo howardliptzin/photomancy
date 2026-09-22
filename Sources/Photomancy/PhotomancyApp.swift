@@ -27,6 +27,24 @@ struct PhotomancyApp: App {
                 .keyboardShortcut("n", modifiers: .command)
             }
 
+            // File ▸ Print… is the pointer route and ⌘P the keyboard one. No
+            // button in the control bar: the bar shapes the sheet, it does not
+            // output it. ⌘P carries a modifier, so unlike the bare keys it is
+            // not matched away from a text field and needs no guard for one.
+            CommandGroup(replacing: .printItem) {
+                Button("Print…") {
+                    Task { await LibraryController.shared.printSheet() }
+                }
+                .keyboardShortcut("p", modifiers: .command)
+                .disabled(!LibraryController.shared.canPrint)
+
+                Button("Export PDF…") {
+                    Task { await LibraryController.shared.exportPDF() }
+                }
+                .keyboardShortcut("e", modifiers: [.command, .shift])
+                .disabled(!LibraryController.shared.canPrint)
+            }
+
             // The native baseline for discovering the keyboard: every action is
             // a menu item carrying its own key equivalent. The menu owns these
             // outright, so a key is dispatched once no matter what has focus.

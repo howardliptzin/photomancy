@@ -115,7 +115,9 @@ public struct SheetSettings: Codable, Sendable, Hashable {
     public var gap: Double
     public var backgroundHex: String
     public var cellShape: CellShape
-    /// The sheet itself. `CellShape.matchPage` resolves against this.
+    /// Where this collection gets printed. Remembered per collection, and
+    /// consulted only when the sheet is scaled onto a page — it never shapes
+    /// what is on screen.
     public var paper: Paper
 
     public init(

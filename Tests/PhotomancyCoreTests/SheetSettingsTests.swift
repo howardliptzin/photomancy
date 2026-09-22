@@ -107,7 +107,7 @@ final class SheetSettingsTests: XCTestCase {
         XCTAssertEqual(SheetSettings().paper.millimetres, CGSize(width: 297, height: 210))
     }
 
-    /// This is the number `CellShape.matchPage` resolves to.
+    /// A4 landscape's own ratio — what the default paper comes to.
     func testPaperAspect() {
         XCTAssertEqual(Paper(size: .a4, orientation: .landscape).aspect, 297.0 / 210.0, accuracy: 0.0001)
         XCTAssertEqual(Paper(size: .a4, orientation: .portrait).aspect, 210.0 / 297.0, accuracy: 0.0001)
