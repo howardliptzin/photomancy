@@ -14,7 +14,7 @@ Read it before writing code. Section numbers below refer to it.
 **M5 plan:** https://claude.ai/artifact/V66mrd8m3FsydyaBuFop4Z
 
 **Status:** M1–M5 complete, merged to `main` and in daily use (M4 on 2026-09-15,
-M5 on 2026-09-22).
+M5 print on 2026-09-22, relink the same day).
 Import and collections, bookmarks, the thumbnail cache, `sheetGeometry()` and the sheet, the
 loop — randomize, select, pin, remove, undo — then drag to position, the lightbox, All
 Photos as the union of the collections, and the settings bar. After M4, found in use and
@@ -25,8 +25,8 @@ milestone stops for real use before the next. **M5, print and PDF, merged on
 the paper finally chosen, and `Scripts/verify-print.sh`, which checks the printed PDF
 against the window's own rectangles. Proven on paper — a sheet measured with a ruler
 matches the millimetres the print dialog states. Still part of M5, on their own
-branches, and required before any beta: the relink flow for a photograph that has
-moved (§07) — strictly by content, a re-exported edit is a different photograph — and
+branches: **relink** (§07), merged 2026-09-22 — strictly by content, a re-exported
+edit is a different photograph — and, still to come and required before any beta,
 deriving the memory cache limit from window area.
 
 ## What this is
@@ -166,6 +166,26 @@ shaped by hand.
   the panel's Powerbox grant matches the entitlement and is read-only. When one import
   route fails and the others work, suspect the grant's mode, not the route.
 - **Content hash** identifies a photo (survives renames) and keys the thumbnail cache.
+- **A photograph that has *moved* does not go missing — a *replaced* one does.**
+  Measured 2026-09-22. Bookmarks resolve by file ID, so a file moved or renamed on the
+  same volume is still found, at its new path, reported stale, and re-created and
+  re-saved on the spot. What breaks a bookmark is a new inode with the same contents:
+  restored from a backup, synced down by Dropbox or iCloud, re-downloaded, copied to
+  another volume, exported over the top. **Relink is recovery from that, not a way to
+  follow moves**, and it is usually wanted for a whole library at once — which is why
+  the panel takes a folder as readily as a file. A test that only moves files is testing
+  a path the app already handles and will find nothing missing; break one by copying it
+  elsewhere, deleting the original, and clearing its thumbnails.
+- **In the sandbox a bookmark whose target has gone resolves to Cocoa 259**,
+  `NSFileReadCorruptFileError` — "isn't in the correct format" — and *not* to either
+  no-such-file code, which is what an unsandboxed test process returns. Read as lost
+  permission it sends someone to a privacy setting instead of to the file and disables
+  Relink…. The mapping lives in `BookmarkResolver.resolutionFailure`, where it is tested.
+- **A `PhotoReference` is a value, so a relink must reach every copy of it** — the
+  document's, the resolver's cached URL, the controller's `referenceIndex`, and the
+  cells' task keys. Miss one and the repair succeeds while the screen goes on showing
+  the failure. And **a repair must never rebuild the arrangement**: that re-rolls the
+  sheet, so the photograph landing in the mended cell is simply the wrong one.
 - **Decode at display size** via ImageIO, off the main thread. Two-tier cache:
   in-memory `NSCache` + on-disk in Application Support.
 - Collections are app-managed reference lists, **not folders**. Plain `Codable` store.
@@ -250,6 +270,7 @@ poor relation.
 | `?` | Show the keyboard legend — `Esc` closes it |
 | `⌘P` | Print (also yields PDF) |
 | `⇧⌘E` | Export PDF… — the sheet to a file, filling the page |
+| Sheet ▸ Relink… | Point a photograph the app cannot read at the file, or a folder at all of them — menu only, because a repair is not part of the loop |
 
 - **A pin is marked with a white dot with a thin black outline, in the upper left
   corner of the frame.** One mark, one place, no variants.
