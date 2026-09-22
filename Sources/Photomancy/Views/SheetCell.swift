@@ -49,7 +49,9 @@ struct SheetCell: View {
         .frame(width: size.width, height: size.height)
         .contentShape(Rectangle())
         .help(failure.map { "\($0)\n\nChoose Sheet ▸ Relink… to point it at the file." } ?? reference.displayName)
-        .task(id: "\(reference.id.hex)@\(requestedPixels)") { await load() }
+        // The generation is in the key so a relinked photograph is read again:
+        // its id cannot change, because its id is its content.
+        .task(id: "\(reference.id.hex)@\(requestedPixels)@\(controller.relinkGeneration)") { await load() }
     }
 
     /// A white dot with a thin black outline, at the upper left of the *cell*.

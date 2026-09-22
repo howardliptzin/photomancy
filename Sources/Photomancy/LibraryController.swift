@@ -856,8 +856,21 @@ final class LibraryController {
             missingPhotographs.remove(target.id)
             log.notice("relink: \(relinked.displayName, privacy: .public) found again")
             refreshAfterRelink()
+            report("“\(relinked.displayName)” was found again.")
         } catch {
             present(error)
+        }
+    }
+
+    private func report(_ message: String, detail: String? = nil) {
+        let alert = NSAlert()
+        alert.messageText = message
+        if let detail { alert.informativeText = detail }
+        alert.alertStyle = .informational
+        if let window = NSApp.keyWindow {
+            alert.beginSheetModal(for: window)
+        } else {
+            alert.runModal()
         }
     }
 
@@ -867,22 +880,45 @@ final class LibraryController {
         log.notice("relink: \(result.relinked.count, privacy: .public) found in \(url.lastPathComponent, privacy: .public)")
 
         if result.relinked.isEmpty {
-            let alert = NSAlert()
-            alert.messageText = "Nothing in “\(url.lastPathComponent)” matches a missing photograph."
-            alert.informativeText = "Relinking matches a file's contents exactly, so an edited or "
-                + "re-exported copy counts as a different photograph."
-            alert.alertStyle = .informational
-            if let window = NSApp.keyWindow { alert.beginSheetModal(for: window) } else { alert.runModal() }
+            report(
+                "Nothing in “\(url.lastPathComponent)” matches a missing photograph.",
+                detail: "Relinking matches a file's contents exactly, so an edited or "
+                    + "re-exported copy counts as a different photograph."
+            )
             return
         }
         refreshAfterRelink()
+        // The sheet is not re-rolled, so a relinked photograph that was not
+        // dealt shows no change at all — without this, fixing nine of them
+        // looks identical to fixing none.
+        let names = result.relinked.map(\.displayName).sorted()
+        report(
+            names.count == 1
+                ? "“\(names[0])” was found again."
+                : "\(names.count) photographs were found again.",
+            detail: names.count == 1 ? nil : names.prefix(6).joined(separator: ", ")
+                + (names.count > 6 ? ", and \(names.count - 6) more." : ".")
+        )
     }
 
-    /// A relinked photograph has a working bookmark but no thumbnail — the
-    /// cells that failed are still showing a triangle, and nothing about the
-    /// arrangement changed to make them look again.
+    /// Bumped by a relink, so the cells look again.
+    ///
+    /// A relinked photograph keeps its id — identity is its content, and its
+    /// content did not change — so nothing a cell keys on has changed and the
+    /// triangle would sit there over a photograph that is now perfectly
+    /// readable. This is what tells them to re-read.
+    private(set) var relinkGeneration = 0
+
+    /// A repair, and nothing more.
+    ///
+    /// Emphatically **not** a rebuild of the arrangement. Rebuilding re-rolls,
+    /// and found in use 2026-09-22: relinking in All Photos dealt a fresh
+    /// subset of 205 photographs into 16 cells, so the cell that had been
+    /// showing the triangle came back holding some other photograph and the
+    /// repair looked like it had put the wrong picture there. Rolling is
+    /// `Space` and `⌘R`; nothing else may do it behind your back.
     private func refreshAfterRelink() {
-        rebuildArrangement(resettingHistory: false)
+        relinkGeneration += 1
         scanForMissingPhotographs()
     }
 
