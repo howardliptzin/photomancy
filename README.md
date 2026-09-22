@@ -8,18 +8,20 @@ again, and move frames into place as a sequence forms.
 
 The screen is the instrument. The grid fills the window and reflows as you resize
 it — 64 photographs at 8 × 8 with a hairline gap, or six at 3 × 2 — so sequencing
-happens at whatever density the work wants. Printing takes what is on screen and
-scales it onto a single sheet; it exists to make a hard copy of a result, not to
-constrain how you arrive at one.
+happens at whatever density the work wants. Printing takes the rectangles already on
+screen and applies one uniform scale onto a single sheet, so what comes out is what
+you arranged; it exists to make a hard copy of a result, not to constrain how you
+arrive at one.
 
 Open source under the MIT licence. It will be sold on the Mac App Store; the source
 stays here for anyone who would rather build it themselves.
 
 ## Status
 
-In development; nothing to install yet. M1–M4 are complete and in daily use; next is
-M5, print and PDF. Once the app is complete there will be a free public beta, through
-TestFlight and a notarised download here.
+In development; nothing to install yet. M1–M5 are complete and in daily use. What
+remains before the app is complete: relinking a photograph that has moved, and sizing
+the memory cache from the window. Then a free public beta, through TestFlight and a
+notarised download here.
 
 Working: import and collections, security-scoped bookmarks, the two-tier thumbnail
 cache, the layout function and the sheet, and the loop — randomize, select, pin,
@@ -35,9 +37,15 @@ one collection shows that some of it belongs somewhere else. And a drag carries 
 whole selection: several frames gather into a stack under the pointer and land as one
 run, in order, pinned where they are dropped.
 
-Much of this came from using it.
+From M5: printing. ⌘P opens the print panel on the collection's paper, states what a
+cell and a gap will measure in millimetres, and updates as you change paper — and
+⇧⌘E exports the sheet as a PDF. Print never draws from the thumbnail cache: it decodes
+the originals at the size they print, 360 pixels per inch, never past the original.
+The printed sheet is the sheet on screen, which `Scripts/verify-print.sh` checks by
+rasterising the PDF and measuring each photograph's edges against the window's own
+rectangles.
 
-Not built yet: printing and PDF.
+Much of this came from using it.
 
 ## Building
 
@@ -86,6 +94,16 @@ Builds the current branch, replaces any running copy, and launches it.
 
 ```
 ./Scripts/run.sh
+```
+
+### Checking the print path
+
+Renders real photographs, rasterises the PDF at 300 ppi, and compares each
+photograph's edges with the window's rectangles under the print transform. Needs no
+library and destroys nothing.
+
+```
+./Scripts/verify-print.sh
 ```
 
 ### Measuring
