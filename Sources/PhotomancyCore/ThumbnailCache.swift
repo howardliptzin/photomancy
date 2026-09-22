@@ -41,12 +41,23 @@ public final class ThumbnailCache: @unchecked Sendable {
     public init(
         resolver: BookmarkResolver,
         directory: URL,
-        memoryLimitBytes: Int = 256 * 1024 * 1024
+        memoryLimitBytes: Int = CacheBudget.minimumBytes
     ) {
         self.resolver = resolver
         self.disk = DiskThumbnailCache(directory: directory)
         memory.totalCostLimit = memoryLimitBytes
     }
+
+    /// Re-size the memory cache for the window it is now serving.
+    ///
+    /// Safe at any moment: `NSCache` evicts down to the new limit on its own,
+    /// and the disk cache still holds whatever it drops. Starts at the floor
+    /// because a window has no size until the sheet has laid out once.
+    public func setMemoryLimit(_ bytes: Int) {
+        memory.totalCostLimit = max(bytes, 0)
+    }
+
+    public var memoryLimit: Int { memory.totalCostLimit }
 
     public var statistics: Statistics {
         state.withLock { $0.statistics }
