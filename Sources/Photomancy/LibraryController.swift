@@ -764,6 +764,101 @@ final class LibraryController {
         }
     }
 
+    // MARK: - Relink
+
+    /// Photographs the app has tried to read and could not find.
+    ///
+    /// Populated by the cells as they fail, which is the same event that draws
+    /// the triangle — so what is marked on the sheet and what Relink… will act
+    /// on cannot disagree.
+    private(set) var missingPhotographs: Set<ContentHash> = []
+
+    func noteMissing(_ id: ContentHash) { missingPhotographs.insert(id) }
+
+    func noteFound(_ id: ContentHash) {
+        guard missingPhotographs.contains(id) else { return }
+        missingPhotographs.remove(id)
+    }
+
+    /// Whether Relink… has anything to act on: a selected photograph that is
+    /// missing, or any missing photograph at all when nothing is selected.
+    var canRelink: Bool {
+        !missingPhotographs.isEmpty && !isEditingText
+    }
+
+    /// The missing photograph the menu will offer to relink — the selected one
+    /// if a selected one is missing, otherwise the first on the sheet.
+    private var relinkTarget: PhotoReference? {
+        let selected = selectedCells
+            .compactMap { arrangement.photograph(at: $0) }
+            .first { missingPhotographs.contains($0) }
+        let id = selected ?? arrangement.slots.compactMap { $0 }.first { missingPhotographs.contains($0) }
+        return id.flatMap { reference(for: $0) }
+    }
+
+    /// Sheet ▸ Relink… — point a photograph at the file, or a folder at all of
+    /// them.
+    ///
+    /// One panel that takes either. Choosing the file itself is the precise
+    /// answer for one photograph; choosing the folder it now lives in fixes
+    /// every photograph that turns out to be in there, which is the common case
+    /// — a library restored from a backup loses them all at once, not one at a
+    /// time.
+    func presentRelinkPanel() {
+        guard let target = relinkTarget else { return }
+
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = false
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = true
+        panel.allowedContentTypes = [.image, .folder]
+        panel.message = "Find “\(target.displayName)”, or choose the folder its photographs are in now."
+        panel.prompt = "Relink"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        let isFolder = (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
+        if isFolder {
+            relinkFolder(url)
+        } else {
+            relinkOne(target, to: url)
+        }
+    }
+
+    private func relinkOne(_ target: PhotoReference, to url: URL) {
+        do {
+            let relinked = try store.relink(target.id, to: url)
+            missingPhotographs.remove(target.id)
+            log.notice("relink: \(relinked.displayName, privacy: .public) found again")
+            refreshAfterRelink()
+        } catch {
+            present(error)
+        }
+    }
+
+    private func relinkFolder(_ url: URL) {
+        let result = store.relink(folderAt: url)
+        for reference in result.relinked { missingPhotographs.remove(reference.id) }
+        log.notice("relink: \(result.relinked.count, privacy: .public) found in \(url.lastPathComponent, privacy: .public)")
+
+        if result.relinked.isEmpty {
+            let alert = NSAlert()
+            alert.messageText = "Nothing in “\(url.lastPathComponent)” matches a missing photograph."
+            alert.informativeText = "Relinking matches a file's contents exactly, so an edited or "
+                + "re-exported copy counts as a different photograph."
+            alert.alertStyle = .informational
+            if let window = NSApp.keyWindow { alert.beginSheetModal(for: window) } else { alert.runModal() }
+            return
+        }
+        refreshAfterRelink()
+    }
+
+    /// A relinked photograph has a working bookmark but no thumbnail — the
+    /// cells that failed are still showing a triangle, and nothing about the
+    /// arrangement changed to make them look again.
+    private func refreshAfterRelink() {
+        rebuildArrangement(resettingHistory: false)
+    }
+
     // MARK: - Printing
 
     /// Whether ⌘P has anything to do. An empty sheet is not worth a panel.

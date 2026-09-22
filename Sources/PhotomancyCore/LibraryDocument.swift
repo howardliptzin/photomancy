@@ -356,3 +356,68 @@ public struct LibraryDocument: Codable, Sendable, Equatable {
         collections[offset].add(ids)
     }
 }
+
+// MARK: - Relink
+
+extension LibraryDocument {
+
+    /// Every photograph the library holds that cannot be read right now.
+    ///
+    /// A `stat` each through the resolver, so it costs milliseconds even on a
+    /// large library and can be asked whenever it might have changed.
+    public func missingPhotographs(resolver: BookmarkResolver) -> [Relink.Missing] {
+        references.compactMap { reference in
+            do {
+                try resolver.withAccess(reference) { _ in }
+                return nil
+            } catch PhotoAccessError.missing {
+                return Relink.Missing(
+                    id: reference.id,
+                    displayName: reference.displayName,
+                    fileSize: reference.fileSize
+                )
+            } catch {
+                // Lost permission is a different problem with a different fix,
+                // and relinking a file that has not moved would not solve it.
+                return nil
+            }
+        }
+    }
+
+    /// Point a photograph at a file the person chose, if it really is that
+    /// photograph.
+    ///
+    /// **One change, and every collection recovers.** A reference lives once in
+    /// the library and collections hold ids, so a relinked photograph is fixed
+    /// everywhere at once — in each collection that holds it and in All Photos —
+    /// without touching membership, pins, or anything else.
+    ///
+    /// Not undoable, and does not need to be: it replaces a token that no longer
+    /// works with one that does. Nothing is lost to put back.
+    @discardableResult
+    public mutating func relink(_ id: ContentHash, to url: URL) throws -> PhotoReference {
+        guard let offset = references.firstIndex(where: { $0.id == id }) else {
+            throw Relink.Failure.notInLibrary
+        }
+        let existing = references[offset]
+
+        let hash: ContentHash
+        do {
+            hash = try ContentHasher.hash(contentsOf: url)
+        } catch {
+            throw Relink.Failure.unreadable(name: url.lastPathComponent, underlying: error)
+        }
+        guard hash == id else {
+            throw Relink.Failure.differentPhotograph(
+                chosen: url.lastPathComponent, expected: existing.displayName
+            )
+        }
+
+        let bookmark = try Relink.bookmark(for: url)
+        // The name follows the file. It is for display and for finding the
+        // photograph again, never for identity, so a file renamed while it was
+        // away should show under the name it has now.
+        references[offset] = existing.relinked(to: url.lastPathComponent, bookmark: bookmark)
+        return references[offset]
+    }
+}

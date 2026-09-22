@@ -48,7 +48,7 @@ struct SheetCell: View {
         }
         .frame(width: size.width, height: size.height)
         .contentShape(Rectangle())
-        .help(failure ?? reference.displayName)
+        .help(failure.map { "\($0)\n\nChoose Sheet ▸ Relink… to point it at the file." } ?? reference.displayName)
         .task(id: "\(reference.id.hex)@\(requestedPixels)") { await load() }
     }
 
@@ -74,9 +74,13 @@ struct SheetCell: View {
         do {
             thumbnail = try await controller.cache.thumbnail(for: reference, maxPixel: requestedPixels)
             failure = nil
+            controller.noteFound(reference.id)
         } catch {
             thumbnail = nil
             failure = error.localizedDescription
+            // The triangle and Relink… must agree about what is missing, so
+            // they are told by the same event: the read that failed.
+            if case PhotoAccessError.missing = error { controller.noteMissing(reference.id) }
         }
     }
 }
