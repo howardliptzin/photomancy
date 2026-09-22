@@ -370,15 +370,15 @@ extension LibraryDocument {
             do {
                 try resolver.withAccess(reference) { _ in }
                 return nil
-            } catch PhotoAccessError.missing {
+            } catch PhotoAccessError.missing, PhotoAccessError.unresolvable {
+                // Both are repaired by pointing the photograph at the file
+                // again: one has lost its target, the other its token.
                 return Relink.Missing(
                     id: reference.id,
                     displayName: reference.displayName,
                     fileSize: reference.fileSize
                 )
             } catch {
-                // Lost permission is a different problem with a different fix,
-                // and relinking a file that has not moved would not solve it.
                 return nil
             }
         }

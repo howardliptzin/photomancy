@@ -319,4 +319,34 @@ final class RelinkTests: XCTestCase {
         XCTAssertNoThrow(try reopened.resolver.withAccess(photo) { _ in },
                          "the new bookmark was written, not just held in memory")
     }
+
+    // MARK: - What a failed resolution actually means
+
+    /// Measured in the running sandboxed app, not guessed: a bookmark whose
+    /// target has been deleted resolves to Cocoa 259, the *corrupt file* code,
+    /// and not to either no-such-file code. Classified as lost permission it
+    /// left Relink… disabled in the one case it exists for.
+    func testABookmarkWhoseTargetHasGoneIsMissingRatherThanLostPermission() {
+        for code in [NSFileNoSuchFileError, NSFileReadNoSuchFileError, NSFileReadCorruptFileError] {
+            let error = NSError(domain: NSCocoaErrorDomain, code: code)
+            guard case PhotoAccessError.missing = BookmarkResolver.resolutionFailure(error, name: "x.jpg") else {
+                return XCTFail("Cocoa \(code) should read as missing")
+            }
+        }
+    }
+
+    func testAnUnrecognisedFailureIsStillReportedAsLostPermission() {
+        let error = NSError(domain: NSPOSIXErrorDomain, code: 1)
+        guard case PhotoAccessError.unresolvable = BookmarkResolver.resolutionFailure(error, name: "x.jpg") else {
+            return XCTFail("an unknown failure should not claim the file has moved")
+        }
+    }
+
+    /// Relink is the repair for a lost token as much as for a lost target, so
+    /// both are offered it.
+    func testAPhotographWithAnUnresolvableBookmarkIsOfferedRelink() throws {
+        let reference = try imported("broken.jpg")
+        try destroy("broken.jpg")
+        XCTAssertEqual(store.missingPhotographs().map(\.id), [reference.id])
+    }
 }

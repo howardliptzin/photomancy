@@ -75,6 +75,7 @@ final class LibraryController {
         refreshCellAspect()
         rebuildArrangement(resettingHistory: true)
 
+        scanForMissingPhotographs()
         log.info("launched with \(self.store.document.references.count) references")
         #if DEBUG
         verifyAccessToEveryPhotograph()
@@ -775,6 +776,31 @@ final class LibraryController {
 
     func noteMissing(_ id: ContentHash) { missingPhotographs.insert(id) }
 
+    /// Ask the whole library what it cannot read.
+    ///
+    /// The cells report what they try to draw, which is not enough on its own:
+    /// a roll deals a subset, so a collection with more photographs than cells
+    /// can hold a missing one that never appears on screen — and Relink… would
+    /// be disabled while the library was quietly short a photograph. Being
+    /// missing is a fact about the library, not about the current sheet, so it
+    /// is asked of the library. A `stat` each, off the main thread, on launch
+    /// and after every relink.
+    func scanForMissingPhotographs() {
+        let store = self.store
+        Task.detached(priority: .utility) {
+            let missing = await MainActor.run { store.missingPhotographs() }
+            await MainActor.run { [weak self] in
+                guard let self else { return }
+                let found = Set(missing.map(\.id))
+                guard found != self.missingPhotographs else { return }
+                self.missingPhotographs = found
+                if !found.isEmpty {
+                    self.log.notice("\(found.count, privacy: .public) photographs cannot be read — Relink… is available")
+                }
+            }
+        }
+    }
+
     func noteFound(_ id: ContentHash) {
         guard missingPhotographs.contains(id) else { return }
         missingPhotographs.remove(id)
@@ -857,6 +883,7 @@ final class LibraryController {
     /// arrangement changed to make them look again.
     private func refreshAfterRelink() {
         rebuildArrangement(resettingHistory: false)
+        scanForMissingPhotographs()
     }
 
     // MARK: - Printing
