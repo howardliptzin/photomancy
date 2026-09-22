@@ -74,6 +74,17 @@ shaped by hand.
   Mutation-tested on 2026-09-20: of eleven renderer tests, concatenating the transform
   is caught by *one* — the two-tone photograph — and inverting the flip's sign fails
   eight. Both tests earn their place.
+- **The five isolation warnings in `SheetPrinting.swift` are accepted as they are.**
+  Settled 2026-09-22. AppKit marks `NSPrintOperation` and `NSView` geometry `@MainActor`
+  and then documents printing as happening on a thread of its own; both cannot be
+  honoured, and the compiler says so five times. They are warnings rather than errors
+  because AppKit is imported preconcurrency, and **no runtime check is inserted for
+  them**. Do not "fix" them with `MainActor.assumeIsolated` — that *does* insert one, and
+  brings back the crash step 0 measured. Everything avoidable was already moved off the
+  printing thread by keeping the page size in the view's own locked state; what is left
+  is irreducible, and the file says so where someone will read it. The cost accepted: an
+  otherwise warning-clean build, so a new warning there needs looking at rather than
+  assuming it is one of these.
 - **An export fills the page; ⌘P fills the printer's imageable area.** An exported PDF
   has no printer, and baking in the margins of whichever one happened to be selected
   would make the same collection export differently on different machines. Both
