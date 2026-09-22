@@ -107,7 +107,34 @@ final class LibraryController {
     /// The sheet's size, reported by the sheet. Used only to keep the grid
     /// controls inside what the window can physically show — past that,
     /// `layout()` has no room and the sheet goes blank. Never a policy bound.
-    var canvas: CGSize = .zero
+    var canvas: CGSize = .zero {
+        didSet { if canvas != oldValue { updateCacheBudget() } }
+    }
+
+    /// The display's backing scale, reported by the sheet. Points are not
+    /// pixels, and the cache is sized in pixels.
+    var displayScale: Double = 2 {
+        didSet { if displayScale != oldValue { updateCacheBudget() } }
+    }
+
+    /// The memory cache is sized from the window, and follows it — resizing the
+    /// window or dragging it to another display changes what the sheet holds.
+    private var reportedCacheBudget = false
+
+    private func updateCacheBudget() {
+        guard canvas.width > 0, canvas.height > 0 else { return }
+        let limit = CacheBudget.memoryLimit(forSheet: canvas, scale: displayScale)
+        // Reported once a window exists even when it comes out at the floor,
+        // so a launch that logs nothing means the sheet has not laid out —
+        // rather than being indistinguishable from one where this never ran.
+        guard limit != cache.memoryLimit || !reportedCacheBudget else { return }
+        reportedCacheBudget = true
+        cache.setMemoryLimit(limit)
+        // notice, not info: info lives in a memory ring buffer and ages out in
+        // minutes, so a budget logged at info cannot be read back after the
+        // fact — which is exactly when anyone wants it.
+        log.notice("cache: \(limit / 1024 / 1024, privacy: .public) MB for a \(Int(self.canvas.width), privacy: .public)x\(Int(self.canvas.height), privacy: .public) pt sheet at \(self.displayScale, privacy: .public)x")
+    }
 
     var columns: Int {
         get { settings.columns }

@@ -25,9 +25,10 @@ milestone stops for real use before the next. **M5, print and PDF, merged on
 the paper finally chosen, and `Scripts/verify-print.sh`, which checks the printed PDF
 against the window's own rectangles. Proven on paper — a sheet measured with a ruler
 matches the millimetres the print dialog states. Still part of M5, on their own
-branches: **relink** (§07), merged 2026-09-22 — strictly by content, a re-exported
-edit is a different photograph — and, still to come and required before any beta,
-deriving the memory cache limit from window area.
+branches, both merged 2026-09-22: **relink** (§07) — strictly by content, a
+re-exported edit is a different photograph — and the memory cache limit derived from
+window area. **M5 is complete**; next is M6, the gate before the beta: icon, sandbox
+audit, a verified Release build.
 
 ## What this is
 
@@ -74,6 +75,17 @@ shaped by hand.
   Mutation-tested on 2026-09-20: of eleven renderer tests, concatenating the transform
   is caught by *one* — the two-tone photograph — and inverting the flip's sign fails
   eight. Both tests earn their place.
+- **The five isolation warnings in `SheetPrinting.swift` are accepted as they are.**
+  Settled 2026-09-22. AppKit marks `NSPrintOperation` and `NSView` geometry `@MainActor`
+  and then documents printing as happening on a thread of its own; both cannot be
+  honoured, and the compiler says so five times. They are warnings rather than errors
+  because AppKit is imported preconcurrency, and **no runtime check is inserted for
+  them**. Do not "fix" them with `MainActor.assumeIsolated` — that *does* insert one, and
+  brings back the crash step 0 measured. Everything avoidable was already moved off the
+  printing thread by keeping the page size in the view's own locked state; what is left
+  is irreducible, and the file says so where someone will read it. The cost accepted: an
+  otherwise warning-clean build, so a new warning there needs looking at rather than
+  assuming it is one of these.
 - **An export fills the page; ⌘P fills the printer's imageable area.** An exported PDF
   has no printer, and baking in the margins of whichever one happened to be selected
   would make the same collection export differently on different machines. Both
@@ -107,11 +119,19 @@ shaped by hand.
   trivial. Watch the first fill, not memory. Measured at M2 on 80 photographs in one
   window: 6 cells 150 MB, 64 cells 145 MB, 120 cells 153 MB, 320 cells 143 MB — flat,
   as predicted.
-- **The memory cache limit is a function of window area, not a constant.** Thumbnails
-  are bucketed up to 1.5× their cell, and a cell's bucket is its long edge, so the
-  decoded total is roughly two to four times the window's pixel count in bytes — a 5K
-  window is 130–270 MB. The current fixed 256 MB happens to fit that and will not fit
-  the next display. Derive it.
+- **The memory cache limit is a function of window area, not a constant.** Derived
+  2026-09-22, replacing a flat 256 MB. Four bytes a pixel, times 2.25 because a
+  thumbnail is decoded to a bucket on the ladder rather than to the exact cell and the
+  ladder steps by 1.5× at worst, plus one lightbox image which is never larger than the
+  window: **thirteen bytes per window pixel**. About 190 MB for a 5K window and 25 MB
+  for 1280 × 800, where the constant gave both 256 MB. Cells tile the sheet, so this
+  tracks the window's *area* and not the cell count. A 64 MB floor, which is a floor on
+  thrashing rather than on correctness, and the answer is rounded up onto a 32 MB step
+  because a limit that followed a window drag pixel by pixel would re-set the cache
+  hundreds of times across one drag. **On a 14-inch MacBook Pro the whole range lands on
+  the floor** — 57 MB windowed, 63 MB full screen — so the number there is 64 MB
+  throughout, and the win is the 4× reduction rather than the tracking, which engages on
+  a larger display.
 - **An empty cell is background and nothing else.** No outline, no placeholder, no
   hint that a cell is there — identical on screen and on paper. A grid that is not
   full should look like a grid that is not full.

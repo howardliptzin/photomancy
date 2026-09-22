@@ -22,6 +22,9 @@ struct SheetView: View {
 
     @FocusState private var hasKeyboardFocus: Bool
 
+    /// Pixels per point, which is what the cache budget is reckoned in.
+    @Environment(\.displayScale) private var displayScale
+
     /// A drag in progress. Nothing is committed until the photograph is dropped,
     /// so a drag abandoned in the margin leaves no step in the history.
     @State private var drag: Drag?
@@ -169,6 +172,7 @@ struct SheetView: View {
             }
             .coordinateSpace(.named(Self.space))
             .onChange(of: proxy.size, initial: true) { _, size in controller.canvas = size }
+            .onChange(of: displayScale, initial: true) { _, scale in controller.displayScale = scale }
         }
         .focusable()
         .focused($hasKeyboardFocus)

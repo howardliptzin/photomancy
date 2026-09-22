@@ -19,8 +19,8 @@ stays here for anyone who would rather build it themselves.
 ## Status
 
 In development; nothing to install yet. M1–M5 are complete and in daily use. What
-remains before the app is complete: sizing the memory cache from the window. Then a
-free public beta, through TestFlight and a notarised download here.
+remains is an icon, a sandbox audit and a verified Release build; then a free public
+beta, through TestFlight and a notarised download here.
 
 Working: import and collections, security-scoped bookmarks, the two-tier thumbnail
 cache, the layout function and the sheet, and the loop — randomize, select, pin,
