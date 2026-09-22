@@ -667,6 +667,20 @@ final class LibraryController {
     func refreshCellAspect() {
         cellAspect = store.document.cellAspect(for: selection)
         derivedAspect = CellShape.derivedFromCollection.aspect(for: store.photos(in: selection))
+        refreshReferenceIndex()
+    }
+
+    /// Re-read the library's references.
+    ///
+    /// Separate from `refreshCellAspect()` because a relink needs exactly this
+    /// and nothing else — and because it being buried in there is what made a
+    /// relinked photograph keep its triangle: the cell looked again, and was
+    /// handed the same stale reference with the bookmark that no longer works.
+    ///
+    /// A reference is a value, so every copy of it is a copy of the old one.
+    /// Relinking has to reach all of them: the resolver's cached URL, this
+    /// index, and the cells' own task keys.
+    private func refreshReferenceIndex() {
         referenceIndex = Dictionary(
             store.document.references.map { ($0.id, $0) },
             uniquingKeysWith: { first, _ in first }
@@ -918,6 +932,7 @@ final class LibraryController {
     /// repair looked like it had put the wrong picture there. Rolling is
     /// `Space` and `⌘R`; nothing else may do it behind your back.
     private func refreshAfterRelink() {
+        refreshReferenceIndex()
         relinkGeneration += 1
         scanForMissingPhotographs()
     }
