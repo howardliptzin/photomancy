@@ -41,6 +41,9 @@ public enum CacheBudget {
     /// One lightbox image, which is never larger than the window it is drawn in.
     static let lightboxImages = 1.0
 
+    /// The granularity the limit moves in. See `memoryLimit(forSheet:scale:)`.
+    public static let step = 32 * 1024 * 1024
+
     /// Small windows still get a cache worth having.
     ///
     /// Not a floor on correctness — the arithmetic above is right at any size —
@@ -63,16 +66,31 @@ public enum CacheBudget {
     ///     Retina window holds four times the pixels of its size in points,
     ///     which is exactly the mistake this function exists to avoid making.
     public static func memoryLimit(forSheet size: CGSize, scale: Double) -> Int {
+        guard let bytes = derivedBytes(forSheet: size, scale: scale) else { return minimumBytes }
+        // Rounded up onto a coarse step, for the same reason thumbnails are
+        // bucketed: dragging a window changes its area continuously, and a
+        // limit that followed every pixel would re-set the cache hundreds of
+        // times across one drag and write a line to the log for each. The
+        // precision was never meaningful — this is a budget, not a measurement.
+        let stepped = (bytes / Double(step)).rounded(.up) * Double(step)
+        return min(max(Int(stepped), minimumBytes), maximumBytes)
+    }
+
+    /// The derivation itself, before the floor and the step round it off.
+    ///
+    /// Separate so the reasoning can be checked on its own terms — that the
+    /// answer follows the window's *area*, and that points are not pixels —
+    /// without the rounding standing in the way of the arithmetic. `nil` for a
+    /// size or scale nothing can be derived from.
+    static func derivedBytes(forSheet size: CGSize, scale: Double) -> Double? {
         guard size.width.isFinite, size.height.isFinite,
               size.width > 0, size.height > 0,
               scale.isFinite, scale >= 1
-        else { return minimumBytes }
+        else { return nil }
 
         let pixels = Double(size.width) * Double(size.height) * scale * scale
         let perPixel = bytesPerPixel * bucketHeadroom + bytesPerPixel * lightboxImages
         let bytes = pixels * perPixel
-
-        guard bytes.isFinite else { return minimumBytes }
-        return min(max(Int(bytes), minimumBytes), maximumBytes)
+        return bytes.isFinite ? bytes : nil
     }
 }

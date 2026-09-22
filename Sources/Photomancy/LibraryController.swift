@@ -130,7 +130,10 @@ final class LibraryController {
         guard limit != cache.memoryLimit || !reportedCacheBudget else { return }
         reportedCacheBudget = true
         cache.setMemoryLimit(limit)
-        log.info("cache: \(limit / 1024 / 1024, privacy: .public) MB for a \(Int(self.canvas.width), privacy: .public)x\(Int(self.canvas.height), privacy: .public) pt sheet at \(self.displayScale, privacy: .public)x")
+        // notice, not info: info lives in a memory ring buffer and ages out in
+        // minutes, so a budget logged at info cannot be read back after the
+        // fact — which is exactly when anyone wants it.
+        log.notice("cache: \(limit / 1024 / 1024, privacy: .public) MB for a \(Int(self.canvas.width), privacy: .public)x\(Int(self.canvas.height), privacy: .public) pt sheet at \(self.displayScale, privacy: .public)x")
     }
 
     var columns: Int {

@@ -28,20 +28,28 @@ final class CacheBudgetTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(limit, Double(CacheBudget.minimumBytes) / 1024 / 1024)
     }
 
-    /// Area, not edge: the whole claim of the derivation.
-    func testTheLimitFollowsAreaRatherThanEdgeLength() {
-        let single = CacheBudget.memoryLimit(forSheet: CGSize(width: 2000, height: 1200), scale: 2)
-        let doubled = CacheBudget.memoryLimit(forSheet: CGSize(width: 4000, height: 2400), scale: 2)
-        XCTAssertEqual(Double(doubled), Double(single) * 4, accuracy: Double(single) * 0.02,
+    /// Area, not edge: the whole claim of the derivation. Checked on the
+    /// derivation itself, because the floor and the step exist precisely to
+    /// stop the public answer tracking the window exactly.
+    func testTheLimitFollowsAreaRatherThanEdgeLength() throws {
+        let single = try XCTUnwrap(CacheBudget.derivedBytes(forSheet: CGSize(width: 2000, height: 1200), scale: 2))
+        let doubled = try XCTUnwrap(CacheBudget.derivedBytes(forSheet: CGSize(width: 4000, height: 2400), scale: 2))
+        XCTAssertEqual(doubled, single * 4, accuracy: single * 1e-9,
                        "twice each edge is four times the area")
     }
 
     /// Points are not pixels. Forgetting this is exactly the mistake the
     /// function exists to avoid, so it is asserted rather than assumed.
-    func testARetinaWindowIsFourTimesTheCacheOfTheSameSizeInPoints() {
-        let onex = CacheBudget.memoryLimit(forSheet: CGSize(width: 3000, height: 2000), scale: 1)
-        let twox = CacheBudget.memoryLimit(forSheet: CGSize(width: 3000, height: 2000), scale: 2)
-        XCTAssertEqual(Double(twox), Double(onex) * 4, accuracy: Double(onex) * 0.02)
+    func testARetinaWindowIsFourTimesTheCacheOfTheSameSizeInPoints() throws {
+        let onex = try XCTUnwrap(CacheBudget.derivedBytes(forSheet: CGSize(width: 3000, height: 2000), scale: 1))
+        let twox = try XCTUnwrap(CacheBudget.derivedBytes(forSheet: CGSize(width: 3000, height: 2000), scale: 2))
+        XCTAssertEqual(twox, onex * 4, accuracy: onex * 1e-9)
+    }
+
+    func testNothingIsDerivedFromASizeOrScaleThatIsNotOne() {
+        XCTAssertNil(CacheBudget.derivedBytes(forSheet: .zero, scale: 2))
+        XCTAssertNil(CacheBudget.derivedBytes(forSheet: CGSize(width: CGFloat.nan, height: 800), scale: 2))
+        XCTAssertNil(CacheBudget.derivedBytes(forSheet: CGSize(width: 1000, height: 800), scale: 0))
     }
 
     func testAWindowWithNoSizeYetGetsTheFloorRatherThanNothing() {
@@ -66,13 +74,34 @@ final class CacheBudgetTests: XCTestCase {
 
     /// The derivation, stated as arithmetic so that changing one term without
     /// changing the reasoning fails here.
-    func testTheLimitIsThirteenBytesPerWindowPixel() {
+    func testTheLimitIsThirteenBytesPerWindowPixel() throws {
         let size = CGSize(width: 2560, height: 1440)
         let pixels = 2560.0 * 1440 * 4     // 2× on both edges
         let expected = pixels * (CacheBudget.bytesPerPixel * CacheBudget.bucketHeadroom
                                  + CacheBudget.bytesPerPixel * CacheBudget.lightboxImages)
-        XCTAssertEqual(Double(CacheBudget.memoryLimit(forSheet: size, scale: 2)), expected, accuracy: 1)
         XCTAssertEqual(expected / pixels, 13, accuracy: 0.001, "four bytes, 2.25 of bucket, one lightbox")
+        XCTAssertEqual(try XCTUnwrap(CacheBudget.derivedBytes(forSheet: size, scale: 2)), expected, accuracy: 1)
+        // Rounded up onto the step, so within one step of the derivation.
+        let actual = Double(CacheBudget.memoryLimit(forSheet: size, scale: 2))
+        XCTAssertGreaterThanOrEqual(actual, expected)
+        XCTAssertLessThan(actual - expected, Double(CacheBudget.step))
+    }
+
+    /// A limit that followed every pixel of a window drag would re-set the
+    /// cache hundreds of times and log a line for each.
+    func testTheLimitDoesNotMoveForEveryPixelOfAWindowDrag() {
+        var seen = Set<Int>()
+        for width in stride(from: 2000.0, through: 2200.0, by: 1) {
+            seen.insert(CacheBudget.memoryLimit(forSheet: CGSize(width: width, height: 1400), scale: 2))
+        }
+        XCTAssertLessThanOrEqual(seen.count, 4, "200 px of drag should cross very few steps, saw \(seen.sorted())")
+    }
+
+    func testEveryLimitIsAWholeNumberOfSteps() {
+        for width in [1400.0, 1800, 2200, 2600, 3000] {
+            let limit = CacheBudget.memoryLimit(forSheet: CGSize(width: width, height: 1400), scale: 2)
+            XCTAssertEqual(limit % CacheBudget.step, 0, "\(width) gave \(limit)")
+        }
     }
 
     func testTheCacheTakesTheLimitItIsGiven() throws {
