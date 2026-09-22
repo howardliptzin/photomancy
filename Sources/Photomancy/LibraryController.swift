@@ -75,6 +75,7 @@ final class LibraryController {
         refreshCellAspect()
         rebuildArrangement(resettingHistory: true)
 
+        scanForMissingPhotographs()
         log.info("launched with \(self.store.document.references.count) references")
         #if DEBUG
         verifyAccessToEveryPhotograph()
@@ -666,6 +667,20 @@ final class LibraryController {
     func refreshCellAspect() {
         cellAspect = store.document.cellAspect(for: selection)
         derivedAspect = CellShape.derivedFromCollection.aspect(for: store.photos(in: selection))
+        refreshReferenceIndex()
+    }
+
+    /// Re-read the library's references.
+    ///
+    /// Separate from `refreshCellAspect()` because a relink needs exactly this
+    /// and nothing else — and because it being buried in there is what made a
+    /// relinked photograph keep its triangle: the cell looked again, and was
+    /// handed the same stale reference with the bookmark that no longer works.
+    ///
+    /// A reference is a value, so every copy of it is a copy of the old one.
+    /// Relinking has to reach all of them: the resolver's cached URL, this
+    /// index, and the cells' own task keys.
+    private func refreshReferenceIndex() {
         referenceIndex = Dictionary(
             store.document.references.map { ($0.id, $0) },
             uniquingKeysWith: { first, _ in first }
@@ -762,6 +777,164 @@ final class LibraryController {
             // back a membership whose photograph has left the library.
             history.reset(to: history.current)
         }
+    }
+
+    // MARK: - Relink
+
+    /// Photographs the app has tried to read and could not find.
+    ///
+    /// Populated by the cells as they fail, which is the same event that draws
+    /// the triangle — so what is marked on the sheet and what Relink… will act
+    /// on cannot disagree.
+    private(set) var missingPhotographs: Set<ContentHash> = []
+
+    func noteMissing(_ id: ContentHash) { missingPhotographs.insert(id) }
+
+    /// Ask the whole library what it cannot read.
+    ///
+    /// The cells report what they try to draw, which is not enough on its own:
+    /// a roll deals a subset, so a collection with more photographs than cells
+    /// can hold a missing one that never appears on screen — and Relink… would
+    /// be disabled while the library was quietly short a photograph. Being
+    /// missing is a fact about the library, not about the current sheet, so it
+    /// is asked of the library. A `stat` each, off the main thread, on launch
+    /// and after every relink.
+    func scanForMissingPhotographs() {
+        let store = self.store
+        Task.detached(priority: .utility) {
+            let missing = await MainActor.run { store.missingPhotographs() }
+            await MainActor.run { [weak self] in
+                guard let self else { return }
+                let found = Set(missing.map(\.id))
+                guard found != self.missingPhotographs else { return }
+                self.missingPhotographs = found
+                if !found.isEmpty {
+                    self.log.notice("\(found.count, privacy: .public) photographs cannot be read — Relink… is available")
+                }
+            }
+        }
+    }
+
+    func noteFound(_ id: ContentHash) {
+        guard missingPhotographs.contains(id) else { return }
+        missingPhotographs.remove(id)
+    }
+
+    /// Whether Relink… has anything to act on: a selected photograph that is
+    /// missing, or any missing photograph at all when nothing is selected.
+    var canRelink: Bool {
+        !missingPhotographs.isEmpty && !isEditingText
+    }
+
+    /// The missing photograph the menu will offer to relink — the selected one
+    /// if a selected one is missing, otherwise the first on the sheet.
+    private var relinkTarget: PhotoReference? {
+        let selected = selectedCells
+            .compactMap { arrangement.photograph(at: $0) }
+            .first { missingPhotographs.contains($0) }
+        let id = selected ?? arrangement.slots.compactMap { $0 }.first { missingPhotographs.contains($0) }
+        return id.flatMap { reference(for: $0) }
+    }
+
+    /// Sheet ▸ Relink… — point a photograph at the file, or a folder at all of
+    /// them.
+    ///
+    /// One panel that takes either. Choosing the file itself is the precise
+    /// answer for one photograph; choosing the folder it now lives in fixes
+    /// every photograph that turns out to be in there, which is the common case
+    /// — a library restored from a backup loses them all at once, not one at a
+    /// time.
+    func presentRelinkPanel() {
+        guard let target = relinkTarget else { return }
+
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = false
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = true
+        panel.allowedContentTypes = [.image, .folder]
+        panel.message = "Find “\(target.displayName)”, or choose the folder its photographs are in now."
+        panel.prompt = "Relink"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        let isFolder = (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
+        if isFolder {
+            relinkFolder(url)
+        } else {
+            relinkOne(target, to: url)
+        }
+    }
+
+    private func relinkOne(_ target: PhotoReference, to url: URL) {
+        do {
+            let relinked = try store.relink(target.id, to: url)
+            missingPhotographs.remove(target.id)
+            log.notice("relink: \(relinked.displayName, privacy: .public) found again")
+            refreshAfterRelink()
+            report("“\(relinked.displayName)” was found again.")
+        } catch {
+            present(error)
+        }
+    }
+
+    private func report(_ message: String, detail: String? = nil) {
+        let alert = NSAlert()
+        alert.messageText = message
+        if let detail { alert.informativeText = detail }
+        alert.alertStyle = .informational
+        if let window = NSApp.keyWindow {
+            alert.beginSheetModal(for: window)
+        } else {
+            alert.runModal()
+        }
+    }
+
+    private func relinkFolder(_ url: URL) {
+        let result = store.relink(folderAt: url)
+        for reference in result.relinked { missingPhotographs.remove(reference.id) }
+        log.notice("relink: \(result.relinked.count, privacy: .public) found in \(url.lastPathComponent, privacy: .public)")
+
+        if result.relinked.isEmpty {
+            report(
+                "Nothing in “\(url.lastPathComponent)” matches a missing photograph.",
+                detail: "Relinking matches a file's contents exactly, so an edited or "
+                    + "re-exported copy counts as a different photograph."
+            )
+            return
+        }
+        refreshAfterRelink()
+        // The sheet is not re-rolled, so a relinked photograph that was not
+        // dealt shows no change at all — without this, fixing nine of them
+        // looks identical to fixing none.
+        let names = result.relinked.map(\.displayName).sorted()
+        report(
+            names.count == 1
+                ? "“\(names[0])” was found again."
+                : "\(names.count) photographs were found again.",
+            detail: names.count == 1 ? nil : names.prefix(6).joined(separator: ", ")
+                + (names.count > 6 ? ", and \(names.count - 6) more." : ".")
+        )
+    }
+
+    /// Bumped by a relink, so the cells look again.
+    ///
+    /// A relinked photograph keeps its id — identity is its content, and its
+    /// content did not change — so nothing a cell keys on has changed and the
+    /// triangle would sit there over a photograph that is now perfectly
+    /// readable. This is what tells them to re-read.
+    private(set) var relinkGeneration = 0
+
+    /// A repair, and nothing more.
+    ///
+    /// Emphatically **not** a rebuild of the arrangement. Rebuilding re-rolls,
+    /// and found in use 2026-09-22: relinking in All Photos dealt a fresh
+    /// subset of 205 photographs into 16 cells, so the cell that had been
+    /// showing the triangle came back holding some other photograph and the
+    /// repair looked like it had put the wrong picture there. Rolling is
+    /// `Space` and `⌘R`; nothing else may do it behind your back.
+    private func refreshAfterRelink() {
+        refreshReferenceIndex()
+        relinkGeneration += 1
+        scanForMissingPhotographs()
     }
 
     // MARK: - Printing

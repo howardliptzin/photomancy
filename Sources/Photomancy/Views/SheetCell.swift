@@ -48,8 +48,10 @@ struct SheetCell: View {
         }
         .frame(width: size.width, height: size.height)
         .contentShape(Rectangle())
-        .help(failure ?? reference.displayName)
-        .task(id: "\(reference.id.hex)@\(requestedPixels)") { await load() }
+        .help(failure.map { "\($0)\n\nChoose Sheet ▸ Relink… to point it at the file." } ?? reference.displayName)
+        // The generation is in the key so a relinked photograph is read again:
+        // its id cannot change, because its id is its content.
+        .task(id: "\(reference.id.hex)@\(requestedPixels)@\(controller.relinkGeneration)") { await load() }
     }
 
     /// A white dot with a thin black outline, at the upper left of the *cell*.
@@ -74,9 +76,13 @@ struct SheetCell: View {
         do {
             thumbnail = try await controller.cache.thumbnail(for: reference, maxPixel: requestedPixels)
             failure = nil
+            controller.noteFound(reference.id)
         } catch {
             thumbnail = nil
             failure = error.localizedDescription
+            // The triangle and Relink… must agree about what is missing, so
+            // they are told by the same event: the read that failed.
+            if case PhotoAccessError.missing = error { controller.noteMissing(reference.id) }
         }
     }
 }

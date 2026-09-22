@@ -132,6 +132,9 @@ struct PhotomancyApp: App {
                 .keyboardShortcut("r", modifiers: [.command, .shift])
                 .disabled(LibraryController.shared.selection == nil)
                 Divider()
+                Button("Relink…") { LibraryController.shared.presentRelinkPanel() }
+                    .disabled(!LibraryController.shared.canRelink)
+                Divider()
                 Button("Keyboard Shortcuts") { LibraryController.shared.showingShortcuts.toggle() }
                     .keyboardShortcut("?", modifiers: [])
                     .disabled(LibraryController.shared.isEditingText)

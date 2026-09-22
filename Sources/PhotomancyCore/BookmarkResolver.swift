@@ -83,16 +83,9 @@ public final class BookmarkResolver: @unchecked Sendable {
                 bookmarkDataIsStale: &isStale
             )
         } catch {
-            // A photograph that has been deleted or moved fails here, before
-            // resolution completes — the bookmark is fine, the file is not.
-            // Reporting that as lost permission would send the person looking
-            // for a privacy setting instead of the file.
             let nsError = error as NSError
-            let notFound = nsError.domain == NSCocoaErrorDomain
-                && [NSFileNoSuchFileError, NSFileReadNoSuchFileError].contains(nsError.code)
-            throw notFound
-                ? PhotoAccessError.missing(name: reference.displayName)
-                : PhotoAccessError.unresolvable(name: reference.displayName, underlying: error)
+            log.error("bookmark resolve failed for \(reference.displayName, privacy: .public): domain=\(nsError.domain, privacy: .public) code=\(nsError.code, privacy: .public) — \(nsError.localizedDescription, privacy: .public)")
+            throw BookmarkResolver.resolutionFailure(error, name: reference.displayName)
         }
 
         if isStale {
@@ -103,6 +96,36 @@ public final class BookmarkResolver: @unchecked Sendable {
         resolved[reference.id] = url
         lock.unlock()
         return url
+    }
+
+    /// Which failure a bookmark that would not resolve actually is.
+    ///
+    /// A photograph that has been deleted or replaced fails here, before
+    /// resolution completes — the bookmark is intact, its target is not.
+    /// Reporting that as lost permission would send the person looking for a
+    /// privacy setting instead of for the file.
+    ///
+    /// **`NSFileReadCorruptFileError` is in the list, and that is measured
+    /// rather than guessed.** In the sandbox a bookmark whose target has gone
+    /// resolves to Cocoa error 259 — "the file couldn't be opened because it
+    /// isn't in the correct format" — and not to either no-such-file code.
+    /// Measured 2026-09-22 in the running app, on a photograph copied elsewhere
+    /// and deleted; the unsandboxed tests return a no-such-file code for the
+    /// same situation, so the test suite alone could never have found this. The
+    /// misclassification mattered: it left Relink… disabled in exactly the case
+    /// it exists for. 259 is also the generic malformed-data code, so a bookmark
+    /// that really is corrupt lands here too — which is right, because relinking
+    /// is the repair for that as well.
+    static func resolutionFailure(_ error: any Error, name: String) -> PhotoAccessError {
+        let nsError = error as NSError
+        let gone = nsError.domain == NSCocoaErrorDomain && [
+            NSFileNoSuchFileError,
+            NSFileReadNoSuchFileError,
+            NSFileReadCorruptFileError,
+        ].contains(nsError.code)
+        return gone
+            ? .missing(name: name)
+            : .unresolvable(name: name, underlying: error)
     }
 
     /// A stale bookmark still resolves — it just will not keep resolving. Make a

@@ -19,9 +19,8 @@ stays here for anyone who would rather build it themselves.
 ## Status
 
 In development; nothing to install yet. M1–M5 are complete and in daily use. What
-remains before the app is complete: relinking a photograph that has moved, and sizing
-the memory cache from the window. Then a free public beta, through TestFlight and a
-notarised download here.
+remains before the app is complete: sizing the memory cache from the window. Then a
+free public beta, through TestFlight and a notarised download here.
 
 Working: import and collections, security-scoped bookmarks, the two-tier thumbnail
 cache, the layout function and the sheet, and the loop — randomize, select, pin,
@@ -44,6 +43,13 @@ the originals at the size they print, 360 pixels per inch, never past the origin
 The printed sheet is the sheet on screen, which `Scripts/verify-print.sh` checks by
 rasterising the PDF and measuring each photograph's edges against the window's own
 rectangles.
+
+Also from M5: **Relink…**, for a photograph the app can no longer read. Point it at the
+file, or at the folder its photographs are in now, and every one that matches is fixed
+at once. Matched strictly by contents — a re-exported edit is a different photograph and
+will not relink. Note that a photograph you merely *move* never goes missing: bookmarks
+follow a file across a move or a rename. What needs relinking is a file that has been
+replaced — restored from a backup, synced down, or copied from another volume.
 
 Much of this came from using it.
 

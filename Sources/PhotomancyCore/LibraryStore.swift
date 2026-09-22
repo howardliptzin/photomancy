@@ -175,6 +175,50 @@ public final class LibraryStore {
         scheduleSave()
     }
 
+    // MARK: - Relink
+
+    /// Point a photograph at a file that has moved.
+    ///
+    /// The resolver must forget the old path, and that is the whole reason this
+    /// goes through the store rather than the document: a resolution is cached
+    /// for the life of the process, so without this the app would keep reading
+    /// through the URL that no longer works and the relink would appear to have
+    /// done nothing until the next launch.
+    @discardableResult
+    public func relink(_ id: ContentHash, to url: URL) throws -> PhotoReference {
+        let reference = try document.relink(id, to: url)
+        resolver.forget(id)
+        saveNow()
+        return reference
+    }
+
+    /// Relink everything in a folder that a missing photograph turns out to be.
+    ///
+    /// Saved once at the end rather than per photograph. Returns what was
+    /// relinked, and what could not be.
+    @discardableResult
+    public func relink(folderAt url: URL) -> (relinked: [PhotoReference], failed: [String]) {
+        let missing = document.missingPhotographs(resolver: resolver)
+        guard !missing.isEmpty else { return ([], []) }
+
+        var relinked: [PhotoReference] = []
+        var failed: [String] = []
+        for found in Relink.search(folder: url, for: missing) {
+            do {
+                relinked.append(try document.relink(found.missing.id, to: found.url))
+                resolver.forget(found.missing.id)
+            } catch {
+                failed.append(found.missing.displayName)
+            }
+        }
+        if !relinked.isEmpty { saveNow() }
+        return (relinked, failed)
+    }
+
+    public func missingPhotographs() -> [Relink.Missing] {
+        document.missingPhotographs(resolver: resolver)
+    }
+
     // MARK: - Reading
 
     public func photos(in collectionID: UUID?) -> [PhotoReference] {
