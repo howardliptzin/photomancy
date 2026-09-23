@@ -13,6 +13,9 @@ Read it before writing code. Section numbers below refer to it.
 
 **M5 plan:** https://claude.ai/artifact/V66mrd8m3FsydyaBuFop4Z
 
+**M6 plan:** https://claude.ai/artifact/7C9M51dTKeryK6hYpMnsQe — written 2026-09-23, waiting
+on answers to its questions 1–6. Nothing built yet.
+
 **Status:** M1–M5 complete, merged to `main` and in daily use (M4 on 2026-09-15,
 M5 print on 2026-09-22, relink the same day).
 Import and collections, bookmarks, the thumbnail cache, `sheetGeometry()` and the sheet, the
