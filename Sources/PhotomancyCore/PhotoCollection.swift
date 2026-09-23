@@ -29,6 +29,14 @@ public enum CellShape: String, Codable, Sendable, Hashable, CaseIterable {
     /// special-casing.
     case derivedFromCollection
 
+    /// A shape this build does not know — written by a newer one — reads as
+    /// Auto rather than throwing. Synthesised decoding throws, and a throw here
+    /// makes the whole library unreadable over one setting.
+    public init(from decoder: any Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        self = CellShape(rawValue: raw) ?? .derivedFromCollection
+    }
+
     /// Width ÷ height, resolved against the collection it belongs to.
     /// Pure, so `layout()` can be tested without a library.
     public func aspect(for photographs: [PhotoReference]) -> Double {
@@ -146,7 +154,7 @@ public struct SheetSettings: Codable, Sendable, Hashable {
     /// `cellShape` after libraries had already been written. Synthesised
     /// decoding would have thrown on the missing key, and `LibraryStore.load()`
     /// refuses to overwrite a library it could not read, so a person would have
-    /// opened the app to an empty grid and a file that was perfectly intact.
+    /// been told their library cannot be opened, over a file that was intact.
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let fallback = SheetSettings()

@@ -17,9 +17,11 @@ import CoreGraphics
 /// ``Size``, and the reason is a one-way door in the library file. A build that
 /// predates a new case throws when it decodes it; `LibraryStore.load()` then
 /// refuses to overwrite a file it could not read, and the person opens a
-/// reverted build to an empty grid over a perfectly intact library.
+/// reverted build to a library it cannot open.
 ///
-/// So ``Size`` is frozen at the two cases it shipped with and **never gains
+/// Since 2026-09-23 an unknown size or orientation decodes to the default
+/// instead of throwing, but every build before that still throws, so the rule
+/// stands. ``Size`` is frozen at the two cases it shipped with and **never gains
 /// another**. The real paper lives in ``pointSize``, under keys an older build
 /// does not know and therefore ignores. ``size`` and ``orientation`` are still
 /// written on every save, set to the nearest of the two shapes, so a reverted
@@ -39,11 +41,23 @@ public struct Paper: Codable, Sendable, Hashable {
             case .usLetter: CGSize(width: 215.9, height: 279.4)
             }
         }
+
+        /// Unknown reads as A4 rather than throwing — see ``CellShape``.
+        public init(from decoder: any Decoder) throws {
+            let raw = try decoder.singleValueContainer().decode(String.self)
+            self = Size(rawValue: raw) ?? .a4
+        }
     }
 
     public enum Orientation: String, Codable, Sendable, Hashable, CaseIterable {
         case portrait
         case landscape
+
+        /// Unknown reads as landscape, the default, rather than throwing.
+        public init(from decoder: any Decoder) throws {
+            let raw = try decoder.singleValueContainer().decode(String.self)
+            self = Orientation(rawValue: raw) ?? .landscape
+        }
     }
 
     /// The nearest of the two shapes an older build understands. Written on
