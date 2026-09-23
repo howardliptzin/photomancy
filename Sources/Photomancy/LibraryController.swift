@@ -64,6 +64,7 @@ final class LibraryController {
     func start() {
         guard !store.isLoaded else { return }
         store.load()
+        guard store.loadFailure == nil || resolveUnreadableLibrary() else { return }
 
         // Reopen on the collection that was on screen at quit. A collection that
         // has since been deleted falls back to All Photos rather than to nothing.
@@ -80,6 +81,47 @@ final class LibraryController {
         #if DEBUG
         verifyAccessToEveryPhotograph()
         #endif
+    }
+
+    /// The library on disk could not be read, and the store will not write over
+    /// it. Asked rather than decided: a file from a newer build should be left
+    /// exactly where it is for that build, and a damaged one should not stop the
+    /// app for ever. Returns `false` when the app is quitting.
+    ///
+    /// An empty grid here would be the worst answer — it looks like a lost
+    /// library, and invites importing into a library that cannot be saved.
+    private func resolveUnreadableLibrary() -> Bool {
+        let alert = NSAlert()
+        alert.alertStyle = .critical
+        alert.messageText = "Photomancy can’t read its library."
+        alert.informativeText = """
+            It may have been saved by a newer version of Photomancy, or the file \
+            may be damaged. Nothing has been changed.
+
+            Quit to leave it exactly as it is — a newer version can still open it. \
+            Or start a new, empty library: the one that can’t be read is kept \
+            beside it, renamed.
+            """
+        alert.addButton(withTitle: "Quit")
+        alert.addButton(withTitle: "Start a New Library")
+
+        guard alert.runModal() == .alertSecondButtonReturn else {
+            NSApp.terminate(nil)
+            return false
+        }
+        do {
+            try store.setAsideUnreadableLibrary()
+            return true
+        } catch {
+            // Not moved, so saving is still refused and the file is still safe.
+            let failed = NSAlert()
+            failed.alertStyle = .critical
+            failed.messageText = "Photomancy couldn’t set its library aside."
+            failed.informativeText = "\(error.localizedDescription) Nothing has been changed, and Photomancy will quit."
+            failed.runModal()
+            NSApp.terminate(nil)
+            return false
+        }
     }
 
     var photographs: [PhotoReference] {
