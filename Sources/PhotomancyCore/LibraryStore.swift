@@ -18,6 +18,17 @@ public final class LibraryStore {
     /// shown for the instant before the file is read.
     public private(set) var isLoaded = false
 
+    /// Why the library on disk could not be read, while that is still the case.
+    ///
+    /// **While this is set, nothing is saved.** The document in memory is empty,
+    /// and writing it would put an empty library over the only copy of the real
+    /// one — a file from a newer build, or a damaged one, that may be perfectly
+    /// recoverable. Found 2026-09-23: this guarantee had been documented since
+    /// M3 and never built, and the save on quit did exactly that. It ends only
+    /// when the person chooses to set the file aside; see
+    /// ``setAsideUnreadableLibrary(at:)``.
+    public private(set) var loadFailure: (any Error)?
+
     public init(fileURL: URL, resolver: BookmarkResolver = BookmarkResolver()) {
         self.fileURL = fileURL
         self.resolver = resolver
@@ -57,11 +68,39 @@ public final class LibraryStore {
         } catch {
             // Refuse to overwrite something unreadable — a bad parse must not
             // become data loss on the next save.
-            log.error("could not read library: \(error.localizedDescription, privacy: .public)")
+            loadFailure = error
+            log.error("could not read library, and will not write over it: \(String(describing: error), privacy: .public)")
         }
     }
 
+    /// Moves a library that could not be read out of the way — kept, renamed,
+    /// beside where it was — so a new one can be started and saved.
+    ///
+    /// The person's choice, never automatic: the file may be from a newer build,
+    /// and then leaving it exactly where it is, for that build to open, is the
+    /// right answer. Returns where it went, or `nil` when the library was
+    /// readable and there is nothing to set aside.
+    @discardableResult
+    public func setAsideUnreadableLibrary(at date: Date = Date()) throws -> URL? {
+        guard loadFailure != nil else { return nil }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd-HHmmss"
+        let aside = fileURL.deletingLastPathComponent()
+            .appendingPathComponent("library-unreadable-\(formatter.string(from: date)).json")
+        try FileManager.default.moveItem(at: fileURL, to: aside)
+
+        loadFailure = nil
+        document = LibraryDocument()
+        log.notice("unreadable library set aside as \(aside.lastPathComponent, privacy: .public)")
+        return aside
+    }
+
     public func saveNow() {
+        guard loadFailure == nil else {
+            log.error("not saving: the library on disk could not be read, and stays exactly as it is")
+            return
+        }
         do {
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -74,6 +113,7 @@ public final class LibraryStore {
 
     /// Coalesce the writes that a bulk import produces.
     public func scheduleSave() {
+        guard loadFailure == nil else { return }
         pendingSave?.cancel()
         pendingSave = Task { @MainActor [weak self] in
             try? await Task.sleep(for: .milliseconds(250))

@@ -46,8 +46,8 @@ final class SheetSettingsTests: XCTestCase {
 
     /// A library written before `cellShape` existed must still open. Without
     /// defaulted decoding this throws, and LibraryStore refuses to overwrite a
-    /// file it could not read — so the person sees an empty grid and an intact
-    /// library, which is the worst of both.
+    /// file it could not read — so the person is told the library cannot be
+    /// opened, over a file that is perfectly intact.
     /// Including `cellMode`, which no longer exists — an unknown key must be
     /// ignored, not fatal.
     func testSettingsWrittenBeforeCellShapeExistedStillLoad() throws {

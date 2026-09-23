@@ -168,10 +168,18 @@ shaped by hand.
   should have been pinned. Restoring a full arrangement is explicitly not worth
   building.
 - **Every sheet setting is per collection**, All Photos included, and every one of
-  them decodes with a default when its key is missing. Settings are the part of the
-  store that grows, and `LibraryStore.load()` refuses to overwrite a file it could
-  not read — so a throw on an unknown key would show an empty grid over a perfectly
-  intact library.
+  them decodes with a default when its key is missing — and every stored enum (cell
+  shape, paper size, orientation) reads a value it does not know as its default
+  rather than throwing, so a setting from a newer build costs that setting, never
+  the library.
+- **An unreadable library is never written over.** Once `LibraryStore.load()` has
+  failed, nothing is saved — not an edit, not the debounced save, not the save on
+  quit — and the app asks: **Quit** leaves the file exactly as it is, for a newer
+  build to open; **Start a New Library** keeps it beside where it was as
+  `library-unreadable-<date>.json` and only then saves again. Built 2026-09-23, when
+  an audit found this guarantee documented since M3 and never implemented: the save
+  on quit wrote an empty library over the real one. Covered by `LibraryStoreTests`,
+  and checked in the sandboxed app on a damaged copy of the real library.
 - **Never `LazyVGrid` for the sheet** — its geometry is invisible to the print path
   and the two will drift.
 - **Print draws from the originals, decoded at the size they print: 360 pixels per
